@@ -368,14 +368,14 @@ Overall, the treemap effectively illustrates **gender-based differences** while 
 elif page == "Prediction":
     st.title("\U0001F52E Sleep Disorder Prediction")
 
-    # \u2705 Include "None" as Normal Sleep (don’t exclude)
+    # Include "None" as Normal Sleep
     df_pred = df.copy()
     df_pred["Sleep Disorder"] = df_pred["Sleep Disorder"].fillna("None")
 
     features = ["Sleep Duration", "Quality of Sleep", "Stress Level", "Physical Activity Level"]
     df_model = df_pred[features + ["Sleep Disorder"]].dropna()
 
-    # Outlier Detection using Z-score
+    # Outlier Detection (Z-score)
     from scipy.stats import zscore
     z_scores = np.abs(zscore(df_model[features]))
     df_model = df_model[(z_scores < 3).all(axis=1)]
@@ -396,7 +396,7 @@ elif page == "Prediction":
         X, y, test_size=0.2, random_state=42
     )
 
-    # \u2696\uFE0F Class Balancing (SMOTE option)
+    # Class Balancing (SMOTE)
     st.subheader("\u2696\uFE0F Class Balancing")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True)
 
@@ -443,23 +443,19 @@ elif page == "Prediction":
     with st.expander("\U0001F4DA Classification Report", expanded=False):
         st.dataframe(report_df)
 
-    # FEATURE IMPORTANCE SUPPORT
-    st.subheader("\U0001F9E0 Feature Importance (for report analysis)")
-
+    # INTERNAL FEATURE IMPORTANCE (hidden from UI)
     if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
-        importance = model.feature_importances_
-        for feat, score in zip(features, importance):
-            st.write(f"**{feat}** = `{score:.4f}`")
+        hidden_importance = dict(zip(features, model.feature_importances_))
 
     elif model_choice == "Logistic Regression":
-        coef = model.coef_[0]
-        for feat, score in zip(features, coef):
-            st.write(f"**{feat}** = `{score:.4f}`")
+        hidden_importance = dict(zip(features, model.coef_[0]))
 
-    elif model_choice == "SVM":
-        st.info("\u26A0\uFE0F SVM with RBF kernel does not provide feature importance. Use kernel='linear' if needed.")
+    else:
+        hidden_importance = None  # SVM (rbf) has no importance
 
-    # User input for prediction
+    # NOTHING IS SHOWN! Stored silently for reports
+
+    # User input
     st.subheader("\U0001F9EA Predict Sleep Disorder")
     sleep = st.slider("Sleep Duration (hours)", 4.0, 10.0, 7.0)
     quality = st.slider("Quality of Sleep", 1, 10, 7)
@@ -475,8 +471,10 @@ elif page == "Prediction":
     if prediction == "None":
         prediction = "Normal Sleep"
 
+    # Prediction Result
     st.subheader("\U0001F50D Prediction Result")
     st.markdown(f"**Predicted Sleep Disorder:** `{prediction}`")
 
+    # Summary table
     st.subheader("\U0001F4CB Prediction Summary Table")
     st.table(input_df.assign(Predicted_Disorder=prediction))
