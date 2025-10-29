@@ -436,8 +436,8 @@ elif page == "Prediction":
         title="Class Distribution Before and After SMOTE"
     )
         st.plotly_chart(fig_bal, use_container_width=True)
-    else:
-        st.info("SMOTE not applied. Original dataset will be used for training.")
+     else:
+         st.info("SMOTE not applied. Original dataset will be used for training.")
 
    # Model selection
    model_choice = st.selectbox(
@@ -447,20 +447,20 @@ elif page == "Prediction":
    )
 
    # Initialize Model
-   if model_choice == "Random Forest":
-       model = RandomForestClassifier(class_weight='balanced' if not balance else None)
+    if model_choice == "Random Forest":
+        model = RandomForestClassifier(class_weight='balanced' if not balance else None)
 
-   elif model_choice == "Logistic Regression":
-       model = LogisticRegression(max_iter=1000, class_weight='balanced' if not balance else None)
+    elif model_choice == "Logistic Regression":
+        model = LogisticRegression(max_iter=1000, class_weight='balanced' if not balance else None)
 
-   elif model_choice == "SVM":
-       model = SVC(kernel='rbf', probability=True, class_weight='balanced' if not balance else None)
+    elif model_choice == "SVM":
+        model = SVC(kernel='rbf', probability=True, class_weight='balanced' if not balance else None)
 
-   elif model_choice == "Decision Tree":
-       model = DecisionTreeClassifier(class_weight='balanced' if not balance else None)
+    elif model_choice == "Decision Tree":
+        model = DecisionTreeClassifier(class_weight='balanced' if not balance else None)
 
-   elif model_choice == "XGBoost":
-       model = XGBClassifier(use_label_encoder=False, eval_metric='mlogloss')
+    elif model_choice == "XGBoost":
+        model = XGBClassifier(use_label_encoder=False, eval_metric='mlogloss')
 
 
     # Train and predict
