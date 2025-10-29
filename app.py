@@ -437,7 +437,7 @@ elif page == "Prediction":
         st.info("Oversampling not applied.")  
 
     # Model selection
-    st.subheader("\U0001F916 Choose Model") 
+    st.subheader("Choose Model") 
     model_choice = st.selectbox(
         "Select Model",
         ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"],
