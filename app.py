@@ -333,7 +333,7 @@ This visualization offers a holistic snapshot of how **work-life dynamics** affe
     """)
 
     # 10. Gender vs Sleep Disorder
-    st.subheader("\U0001F333 Treemap of Sleep Disorders by Gender")
+    st.subheader("Treemap of Sleep Disorders by Gender")
 
     treemap_data = (
     filtered.groupby(["Gender", "Sleep Disorder"])
