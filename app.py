@@ -398,7 +398,7 @@ elif page == "Prediction":
 
     # Class Balancing (SMOTE option)
     st.subheader("\u2696\uFE0F Class Balancing")
-    balance = st.checkbox("Apply SMOTE Oversampling", value=True)
+    balance = st.checkbox("Apply SMOTE Oversampling", value=True, key="smote_checkbox")
 
     if balance:
         # Store original distribution before SMOTE
@@ -426,7 +426,6 @@ elif page == "Prediction":
         # Combine and visualize
         dist_df = pd.concat([before_df, after_df])
 
-        import plotly.express as px
         fig_bal = px.bar(
             dist_df,
             x="Class",
@@ -438,7 +437,15 @@ elif page == "Prediction":
         )
         st.plotly_chart(fig_bal, use_container_width=True)
     else:
-        st.info(" SMOTE not applied. Original dataset will be used for training.")
+        st.info("SMOTE not applied. Original dataset will be used for training.")
+
+    # Model selection (only one selectbox!)
+    model_choice = st.selectbox(
+        "Choose Model",
+        ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"],
+        key="model_selection"
+    )
+
 
     # Model selection
     model_choice = st.selectbox("Choose Model", [
