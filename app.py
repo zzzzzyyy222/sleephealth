@@ -397,82 +397,71 @@ elif page == "Prediction":
     )
 
     # Class Balancing (SMOTE option)
-    st.subheader("\u2696\uFE0F Class Balancing")
+    st.subheader("Class Balancing")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True, key="smote_checkbox")
 
     if balance:
         # Store original distribution before SMOTE
         before_counts = pd.Series(y_train).value_counts().sort_index()
         before_df = pd.DataFrame({
-            "Class": le.inverse_transform(before_counts.index),
-            "Count": before_counts.values,
-            "Stage": "Before SMOTE"
-        })
+           "Class": le.inverse_transform(before_counts.index),
+           "Count": before_counts.values,
+           "Stage": "Before SMOTE"
+       })
 
-        # Apply SMOTE
-        from imblearn.over_sampling import SMOTE
-        smote = SMOTE(random_state=42)
-        X_train, y_train = smote.fit_resample(X_train, y_train)
-        st.info("\u2705 SMOTE applied!")
+    # Apply SMOTE
+    from imblearn.over_sampling import SMOTE
+    smote = SMOTE(random_state=42)
+    X_train, y_train = smote.fit_resample(X_train, y_train)
+    st.info("SMOTE applied!")
 
-        # After SMOTE distribution
-        after_counts = pd.Series(y_train).value_counts().sort_index()
-        after_df = pd.DataFrame({
-            "Class": le.inverse_transform(after_counts.index),
-            "Count": after_counts.values,
-            "Stage": "After SMOTE"
-        })
+    # After SMOTE distribution
+    after_counts = pd.Series(y_train).value_counts().sort_index()
+    after_df = pd.DataFrame({
+        "Class": le.inverse_transform(after_counts.index),
+        "Count": after_counts.values,
+        "Stage": "After SMOTE"
+    })
 
-        # Combine and visualize
-        dist_df = pd.concat([before_df, after_df])
+    # Combine and visualize
+    dist_df = pd.concat([before_df, after_df])
 
-        fig_bal = px.bar(
-            dist_df,
-            x="Class",
-            y="Count",
-            color="Stage",
-            barmode="group",
-            color_discrete_sequence=px.colors.qualitative.Set2,
-            title="Class Distribution Before and After SMOTE"
-        )
-        st.plotly_chart(fig_bal, use_container_width=True)
-    else:
-        st.info("SMOTE not applied. Original dataset will be used for training.")
-
-    # Model selection (only one selectbox!)
-    model_choice = st.selectbox(
-        "Choose Model",
-        ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"],
-        key="model_selection"
+    fig_bal = px.bar(
+        dist_df,
+        x="Class",
+        y="Count",
+        color="Stage",
+        barmode="group",
+        color_discrete_sequence=px.colors.qualitative.Set2,
+        title="Class Distribution Before and After SMOTE"
     )
+       st.plotly_chart(fig_bal, use_container_width=True)
+   else:
+       st.info("⚠️ SMOTE not applied. Original dataset will be used for training.")
 
+   # Model selection
+   model_choice = st.selectbox(
+       "Choose Model",
+       ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"],
+       key="model_selection"
+   )
 
-    # Model selection
-    model_choice = st.selectbox("Choose Model", [
-        "Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"
-    ])
+   # Initialize Model
+   if model_choice == "Random Forest":
+       model = RandomForestClassifier(class_weight='balanced' if not balance else None)
 
+   elif model_choice == "Logistic Regression":
+       model = LogisticRegression(max_iter=1000, class_weight='balanced' if not balance else None)
 
-    # Model selection
-    model_choice = st.selectbox("Choose Model", [
-        "Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"
-    ])
+   elif model_choice == "SVM":
+       model = SVC(kernel='rbf', probability=True, class_weight='balanced' if not balance else None)
 
-    # Initialize Model
-    if model_choice == "Random Forest":
-        model = RandomForestClassifier(class_weight='balanced' if not balance else None)
+   elif model_choice == "Decision Tree":
+       model = DecisionTreeClassifier(class_weight='balanced' if not balance else None)
 
-    elif model_choice == "Logistic Regression":
-        model = LogisticRegression(max_iter=1000, class_weight='balanced' if not balance else None)
+   elif model_choice == "XGBoost":
+       model = XGBClassifier(use_label_encoder=False, eval_metric='mlogloss')
 
-    elif model_choice == "SVM":
-        model = SVC(kernel='rbf', probability=True, class_weight='balanced' if not balance else None)
-
-    elif model_choice == "Decision Tree":
-        model = DecisionTreeClassifier(class_weight='balanced' if not balance else None)
-
-    elif model_choice == "XGBoost":
-        model = XGBClassifier(use_label_encoder=False, eval_metric='mlogloss')
 
     # Train and predict
     model.fit(X_train, y_train)
