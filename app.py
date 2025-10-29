@@ -394,7 +394,7 @@ elif page == "Prediction":
         X, y, test_size=0.2, random_state=42
     )
 
-    # Class Balancing (SMOTE option)
+    # Class Balancing
     st.subheader("\u2696\uFE0F Class Balancing (SMOTE option)")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True, key="smote_checkbox")
 
@@ -484,12 +484,6 @@ elif page == "Prediction":
         importance = dict(zip(features, perm.importances_mean))
     else:
         importance = None
-
-    if importance:
-        imp_df = pd.DataFrame(list(importance.items()), columns=["Feature", "Importance"]).sort_values(by="Importance", ascending=False)
-        fig_imp = px.bar(imp_df, x="Feature", y="Importance", color="Feature",
-                         title="Feature Importance", color_discrete_sequence=px.colors.qualitative.Vivid)
-        st.plotly_chart(fig_imp, use_container_width=True)
 
     # Prediction Input
     st.subheader("\U0001F9E0 Predict Sleep Disorder")  # 
