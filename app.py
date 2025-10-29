@@ -208,20 +208,7 @@ Each colored shape represents an occupation’s average profile, helping identif
 This visualization offers a holistic snapshot of how **work-life dynamics** affect sleep health and well-being.
 """)
 
-    # 2. Sleep Duration by Occupation
-    st.subheader("Sleep Duration by Occupation")
-    fig2 = px.box(filtered, x="Occupation", y="Sleep Duration", color="Occupation", 
-                  color_discrete_sequence=px.colors.qualitative.Pastel)
-    st.plotly_chart(fig2, use_container_width=True)
-    st.markdown("""
-    **Occupational Influence on Sleep Duration**  
-    This boxplot highlights how work type affects sleep.  
-    Occupations with high mental or physical demands — such as corporate, healthcare, or technical jobs — show shorter and more varied sleep durations.  
-    On the other hand, those in creative or academic roles demonstrate more consistent and slightly longer sleep periods.  
-    The spread within each occupation also suggests **individual lifestyle differences**, indicating that factors like workload, shift schedules, and stress coping methods heavily influence rest patterns.
-    """)
-
-    # 3. Correlation Heatmap
+    # 2. Correlation Heatmap
     st.subheader("Correlation Heatmap")
     numeric_cols = filtered.select_dtypes(include=np.number).columns.tolist()
     cols_to_remove = ["Person ID", "Person_ID", "ID", "id"]
@@ -240,7 +227,7 @@ This visualization offers a holistic snapshot of how **work-life dynamics** affe
     These relationships help identify which variables might serve as strong predictors in modeling sleep disorders.
     """)
 
-    # 4. Sleep Disorder Distribution
+    # 3. Sleep Disorder Distribution
     st.subheader("Sleep Disorder Distribution")
     disorder_counts = filtered["Sleep Disorder"].value_counts().reset_index()
     disorder_counts.columns = ["Sleep Disorder", "Count"]
@@ -254,7 +241,7 @@ This visualization offers a holistic snapshot of how **work-life dynamics** affe
     Understanding disorder distribution is crucial for **targeted awareness and intervention programs**, as it indicates where preventive education or treatment accessibility should be prioritized.
     """)
 
-    # 5. Distribution of Sleep Quality (Histogram)
+    # 4. Distribution of Sleep Quality (Histogram)
     st.subheader("Distribution of Sleep Quality")
     fig6 = px.histogram(
         filtered, 
@@ -272,7 +259,20 @@ This visualization offers a holistic snapshot of how **work-life dynamics** affe
     Differences between genders appear minimal, although male participants show a slightly wider variation in reported quality.  
     The findings highlight the need for interventions targeting **consistent sleep routines and stress management** to improve sleep quality.
     """)
-
+    
+    # 5. Sleep Duration by Occupation
+    st.subheader("Sleep Duration by Occupation")
+    fig2 = px.box(filtered, x="Occupation", y="Sleep Duration", color="Occupation", 
+                  color_discrete_sequence=px.colors.qualitative.Pastel)
+    st.plotly_chart(fig2, use_container_width=True)
+    st.markdown("""
+    **Occupational Influence on Sleep Duration**  
+    This boxplot highlights how work type affects sleep.  
+    Occupations with high mental or physical demands — such as corporate, healthcare, or technical jobs — show shorter and more varied sleep durations.  
+    On the other hand, those in creative or academic roles demonstrate more consistent and slightly longer sleep periods.  
+    The spread within each occupation also suggests **individual lifestyle differences**, indicating that factors like workload, shift schedules, and stress coping methods heavily influence rest patterns.
+    """)
+    
     # 6. Sleep Disorder by Age (Stacked Percent Bar)
     st.subheader("Sleep Disorders by Age Group")
     fig7 = px.histogram(filtered, x="Age", color="Sleep Disorder",
@@ -396,15 +396,49 @@ elif page == "Prediction":
         X, y, test_size=0.2, random_state=42
     )
 
-    # Class Balancing (SMOTE)
+        # Class Balancing (SMOTE option)
     st.subheader("\u2696\uFE0F Class Balancing")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True)
+
+    # Store original class distribution before SMOTE
+    before_counts = pd.Series(y_train).value_counts().sort_index()
+    before_df = pd.DataFrame({
+        "Class": le.inverse_transform(before_counts.index),
+        "Count": before_counts.values,
+        "Stage": "Before SMOTE"
+    })
 
     if balance:
         from imblearn.over_sampling import SMOTE
         smote = SMOTE(random_state=42)
         X_train, y_train = smote.fit_resample(X_train, y_train)
-        st.info("SMOTE applied!")
+        st.info("\u2705 SMOTE applied!")
+
+        # After SMOTE distribution
+        after_counts = pd.Series(y_train).value_counts().sort_index()
+        after_df = pd.DataFrame({
+            "Class": le.inverse_transform(after_counts.index),
+            "Count": after_counts.values,
+            "Stage": "After SMOTE"
+        })
+
+        # Combine before and after
+        dist_df = pd.concat([before_df, after_df])
+    else:
+        dist_df = before_df
+
+    # Visualize class distribution before and after SMOTE
+    import plotly.express as px
+    fig_bal = px.bar(
+        dist_df,
+        x="Class",
+        y="Count",
+        color="Stage",
+        barmode="group",
+        color_discrete_sequence=px.colors.qualitative.Set2,
+        title="Class Distribution Before and After SMOTE"
+    )
+    st.plotly_chart(fig_bal, use_container_width=True)
 
     # Model selection
     model_choice = st.selectbox("Choose Model", [
