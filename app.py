@@ -435,9 +435,9 @@ elif page == "Prediction":
         color_discrete_sequence=px.colors.qualitative.Set2,
         title="Class Distribution Before and After SMOTE"
     )
-       st.plotly_chart(fig_bal, use_container_width=True)
-   else:
-       st.info("⚠️ SMOTE not applied. Original dataset will be used for training.")
+        st.plotly_chart(fig_bal, use_container_width=True)
+    else:
+        st.info("SMOTE not applied. Original dataset will be used for training.")
 
    # Model selection
    model_choice = st.selectbox(
@@ -495,8 +495,8 @@ elif page == "Prediction":
         perm_importance = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
         hidden_importance = dict(zip(features, perm_importance.importances_mean))
 
-    else:
-        hidden_importance = None
+     else:
+         hidden_importance = None
 
     # User input
     st.subheader("\U0001F9EA Predict Sleep Disorder")
