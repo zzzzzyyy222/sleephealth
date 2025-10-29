@@ -404,7 +404,7 @@ elif page == "Prediction":
         from imblearn.over_sampling import SMOTE
         smote = SMOTE(random_state=42)
         X_train, y_train = smote.fit_resample(X_train, y_train)
-        st.info("\u2705 SMOTE applied!")
+        st.info("SMOTE applied!")
 
     # Model selection
     model_choice = st.selectbox("Choose Model", [
@@ -443,17 +443,24 @@ elif page == "Prediction":
     with st.expander("\U0001F4DA Classification Report", expanded=False):
         st.dataframe(report_df)
 
-    # INTERNAL FEATURE IMPORTANCE (hidden from UI)
+    # FEATURE IMPORTANCE 
+    from sklearn.inspection import permutation_importance
+
     if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
+        # Native importance
         hidden_importance = dict(zip(features, model.feature_importances_))
 
     elif model_choice == "Logistic Regression":
-        hidden_importance = dict(zip(features, model.coef_[0]))
+        # Use absolute coefficient values
+        hidden_importance = dict(zip(features, abs(model.coef_[0])))
+
+    elif model_choice == "SVM":
+        # Use permutation importance for non-linear SVM
+        perm_importance = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
+        hidden_importance = dict(zip(features, perm_importance.importances_mean))
 
     else:
-        hidden_importance = None  # SVM (rbf) has no importance
-
-    # NOTHING IS SHOWN! Stored silently for reports
+        hidden_importance = None
 
     # User input
     st.subheader("\U0001F9EA Predict Sleep Disorder")
