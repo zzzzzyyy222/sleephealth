@@ -366,7 +366,7 @@ Overall, the treemap effectively illustrates **gender-based differences** while 
 
 
 elif page == "Prediction":
-    st.title("\U0001F52E Sleep Disorder Prediction")
+    st.title("\U0001F52E Sleep Disorder Prediction") 
 
     # Include "None" as Normal Sleep
     df_pred = df.copy()
@@ -386,82 +386,75 @@ elif page == "Prediction":
     y = le.fit_transform(df_model["Sleep Disorder"])
 
     # Feature Scaling
-    from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
     X = scaler.fit_transform(df_model[features])
 
     # Train-test split
-    from sklearn.model_selection import train_test_split
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
 
     # Class Balancing (SMOTE option)
-    st.subheader("Class Balancing")
+    st.subheader("\u2696\uFE0F Class Balancing (SMOTE option)")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True, key="smote_checkbox")
 
     if balance:
-        # Store original distribution before SMOTE
+        # Before SMOTE distribution
         before_counts = pd.Series(y_train).value_counts().sort_index()
         before_df = pd.DataFrame({
-           "Class": le.inverse_transform(before_counts.index),
-           "Count": before_counts.values,
-           "Stage": "Before SMOTE"
-       })
+            "Class": le.inverse_transform(before_counts.index),
+            "Count": before_counts.values,
+            "Stage": "Before SMOTE"
+        })
 
-    # Apply SMOTE
-    from imblearn.over_sampling import SMOTE
-    smote = SMOTE(random_state=42)
-    X_train, y_train = smote.fit_resample(X_train, y_train)
-    st.info("SMOTE applied!")
+        # Apply SMOTE
+        from imblearn.over_sampling import SMOTE
+        smote = SMOTE(random_state=42)
+        X_train, y_train = smote.fit_resample(X_train, y_train)
+        st.info("SMOTE applied!")  
 
-    # After SMOTE distribution
-    after_counts = pd.Series(y_train).value_counts().sort_index()
-    after_df = pd.DataFrame({
-        "Class": le.inverse_transform(after_counts.index),
-        "Count": after_counts.values,
-        "Stage": "After SMOTE"
-    })
+        # After SMOTE distribution
+        after_counts = pd.Series(y_train).value_counts().sort_index()
+        after_df = pd.DataFrame({
+            "Class": le.inverse_transform(after_counts.index),
+            "Count": after_counts.values,
+            "Stage": "After SMOTE"
+        })
 
-    # Combine and visualize
-    dist_df = pd.concat([before_df, after_df])
-
-    fig_bal = px.bar(
-        dist_df,
-        x="Class",
-        y="Count",
-        color="Stage",
-        barmode="group",
-        color_discrete_sequence=px.colors.qualitative.Set2,
-        title="Class Distribution Before and After SMOTE"
-    )
+        # Combine and visualize
+        dist_df = pd.concat([before_df, after_df])
+        fig_bal = px.bar(
+            dist_df,
+            x="Class",
+            y="Count",
+            color="Stage",
+            barmode="group",
+            color_discrete_sequence=px.colors.qualitative.Set2,
+            title="Class Distribution Before and After SMOTE"
+        )
         st.plotly_chart(fig_bal, use_container_width=True)
-     else:
-         st.info("SMOTE not applied. Original dataset will be used for training.")
+    else:
+        st.info("Oversampling not applied.")  
 
-   # Model selection
-   model_choice = st.selectbox(
-       "Choose Model",
-       ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"],
-       key="model_selection"
-   )
+    # Model selection
+    st.subheader("\U0001F916 Choose Model") 
+    model_choice = st.selectbox(
+        "Select Model",
+        ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"],
+        key="model_selection"
+    )
 
-   # Initialize Model
+    # Initialize Model
     if model_choice == "Random Forest":
         model = RandomForestClassifier(class_weight='balanced' if not balance else None)
-
     elif model_choice == "Logistic Regression":
         model = LogisticRegression(max_iter=1000, class_weight='balanced' if not balance else None)
-
     elif model_choice == "SVM":
         model = SVC(kernel='rbf', probability=True, class_weight='balanced' if not balance else None)
-
     elif model_choice == "Decision Tree":
         model = DecisionTreeClassifier(class_weight='balanced' if not balance else None)
-
     elif model_choice == "XGBoost":
         model = XGBClassifier(use_label_encoder=False, eval_metric='mlogloss')
-
 
     # Train and predict
     model.fit(X_train, y_train)
@@ -472,34 +465,34 @@ elif page == "Prediction":
     report_dict = classification_report(y_test, y_pred, target_names=le.classes_, output_dict=True)
     report_df = pd.DataFrame(report_dict).transpose().round(2)
 
-    st.subheader(f"\U0001F4CA {model_choice} Evaluation Metrics")
+    st.subheader("\U0001F4CA " + f"{model_choice} Evaluation Metrics")  
     st.markdown(f"- **Accuracy:** `{accuracy_score(y_test, y_pred):.2f}`")
-    st.markdown(f"- **Supported Classes:** `{', '.join(le.classes_)}`")
+    st.markdown(f"- **Classes:** `{', '.join(le.classes_)}`")
 
-    with st.expander("\U0001F4DA Classification Report", expanded=False):
+    with st.expander("\U0001F4D8 Classification Report", expanded=False):
         st.dataframe(report_df)
 
-    # FEATURE IMPORTANCE 
+    # Feature Importance
     from sklearn.inspection import permutation_importance
 
     if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
-        # Native importance
-        hidden_importance = dict(zip(features, model.feature_importances_))
-
+        importance = dict(zip(features, model.feature_importances_))
     elif model_choice == "Logistic Regression":
-        # Use absolute coefficient values
-        hidden_importance = dict(zip(features, abs(model.coef_[0])))
-
+        importance = dict(zip(features, abs(model.coef_[0])))
     elif model_choice == "SVM":
-        # Use permutation importance for non-linear SVM
-        perm_importance = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
-        hidden_importance = dict(zip(features, perm_importance.importances_mean))
+        perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
+        importance = dict(zip(features, perm.importances_mean))
+    else:
+        importance = None
 
-     else:
-         hidden_importance = None
+    if importance:
+        imp_df = pd.DataFrame(list(importance.items()), columns=["Feature", "Importance"]).sort_values(by="Importance", ascending=False)
+        fig_imp = px.bar(imp_df, x="Feature", y="Importance", color="Feature",
+                         title="Feature Importance", color_discrete_sequence=px.colors.qualitative.Vivid)
+        st.plotly_chart(fig_imp, use_container_width=True)
 
-    # User input
-    st.subheader("\U0001F9EA Predict Sleep Disorder")
+    # Prediction Input
+    st.subheader("\U0001F9E0 Predict Sleep Disorder")  # 
     sleep = st.slider("Sleep Duration (hours)", 4.0, 10.0, 7.0)
     quality = st.slider("Quality of Sleep", 1, 10, 7)
     stress = st.slider("Stress Level", 1, 10, 5)
@@ -510,14 +503,12 @@ elif page == "Prediction":
 
     prediction_encoded = model.predict(input_scaled)[0]
     prediction = le.inverse_transform([prediction_encoded])[0]
-
     if prediction == "None":
         prediction = "Normal Sleep"
 
-    # Prediction Result
-    st.subheader("\U0001F50D Prediction Result")
-    st.markdown(f"**Predicted Sleep Disorder:** `{prediction}`")
+    st.subheader("\U0001F50D Prediction Result") 
+    st.success(f"Predicted Sleep Disorder: {prediction}")
 
-    # Summary table
-    st.subheader("\U0001F4CB Prediction Summary Table")
+    st.subheader("\U0001F4CB Prediction Summary") 
     st.table(input_df.assign(Predicted_Disorder=prediction))
+
