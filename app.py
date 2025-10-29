@@ -396,19 +396,20 @@ elif page == "Prediction":
         X, y, test_size=0.2, random_state=42
     )
 
-        # Class Balancing (SMOTE option)
+    # Class Balancing (SMOTE option)
     st.subheader("\u2696\uFE0F Class Balancing")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True)
 
-    # Store original class distribution before SMOTE
-    before_counts = pd.Series(y_train).value_counts().sort_index()
-    before_df = pd.DataFrame({
-        "Class": le.inverse_transform(before_counts.index),
-        "Count": before_counts.values,
-        "Stage": "Before SMOTE"
-    })
-
     if balance:
+        # Store original distribution before SMOTE
+        before_counts = pd.Series(y_train).value_counts().sort_index()
+        before_df = pd.DataFrame({
+            "Class": le.inverse_transform(before_counts.index),
+            "Count": before_counts.values,
+            "Stage": "Before SMOTE"
+        })
+
+        # Apply SMOTE
         from imblearn.over_sampling import SMOTE
         smote = SMOTE(random_state=42)
         X_train, y_train = smote.fit_resample(X_train, y_train)
@@ -422,23 +423,28 @@ elif page == "Prediction":
             "Stage": "After SMOTE"
         })
 
-        # Combine before and after
+        # Combine and visualize
         dist_df = pd.concat([before_df, after_df])
-    else:
-        dist_df = before_df
 
-    # Visualize class distribution before and after SMOTE
-    import plotly.express as px
-    fig_bal = px.bar(
-        dist_df,
-        x="Class",
-        y="Count",
-        color="Stage",
-        barmode="group",
-        color_discrete_sequence=px.colors.qualitative.Set2,
-        title="Class Distribution Before and After SMOTE"
-    )
-    st.plotly_chart(fig_bal, use_container_width=True)
+        import plotly.express as px
+        fig_bal = px.bar(
+            dist_df,
+            x="Class",
+            y="Count",
+            color="Stage",
+            barmode="group",
+            color_discrete_sequence=px.colors.qualitative.Set2,
+            title="Class Distribution Before and After SMOTE"
+        )
+        st.plotly_chart(fig_bal, use_container_width=True)
+    else:
+        st.info(" SMOTE not applied. Original dataset will be used for training.")
+
+    # Model selection
+    model_choice = st.selectbox("Choose Model", [
+        "Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"
+    ])
+
 
     # Model selection
     model_choice = st.selectbox("Choose Model", [
