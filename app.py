@@ -490,14 +490,18 @@ elif page == "Prediction":
 
     input_df = pd.DataFrame([input_dict])
 
+    # Encode only present categoricals
+    present_categoricals = [col for col in categorical_cols if col in input_df.columns]
+    input_encoded = pd.get_dummies(input_df, columns=present_categoricals, drop_first=True)
+
+    # Ensure all model features are present
+    for col in features:
+        if col not in input_encoded.columns:
+            input_encoded[col] = 0
+    input_encoded = input_encoded[features]
+
     # Prediction
     if st.button("\u2705 Predict Sleep Disorder"):
-        input_encoded = pd.get_dummies(input_df, columns=["Gender", "Occupation", "BMI Category"], drop_first=True)
-        for col in features:
-            if col not in input_encoded.columns:
-                input_encoded[col] = 0
-        input_encoded = input_encoded[features]
-
         input_scaled = scaler.transform(input_encoded)
         prediction_encoded = model.predict(input_scaled)[0]
         prediction = le.inverse_transform([prediction_encoded])[0]
@@ -515,8 +519,3 @@ elif page == "Prediction":
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
         st.subheader("\U0001F4CB Prediction Summary")
 
-
-        st.subheader("\U0001F50E Prediction Result")
-        st.success(f"Predicted Sleep Disorder: {prediction}")
-        st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
-        st.subheader("\U0001F4CB Prediction Summary")
