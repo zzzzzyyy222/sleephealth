@@ -349,17 +349,12 @@ elif page == "Prediction":
         df_pred["Diastolic"] = bp_split[1]
         df_pred = df_pred.drop(columns=["Blood Pressure"])
 
-    # Encode categorical columns numerically
-    categorical_cols = ["Gender", "BMI Category", "Occupation"]
-    df_encoded = df_pred.copy()
-    for col in categorical_cols:
-        le_col = LabelEncoder()
-        df_encoded[col] = le_col.fit_transform(df_encoded[col])
+    categorical_cols = ["Gender", "Occupation", "BMI Category"]
+    df_encoded = pd.get_dummies(df_pred, columns=categorical_cols, drop_first=True)
 
     features = [col for col in df_encoded.columns if col != "Sleep Disorder"]
     X_full = df_encoded[features].values
 
-    # Target
     le = LabelEncoder()
     y = le.fit_transform(df_encoded["Sleep Disorder"])
 
@@ -412,6 +407,7 @@ elif page == "Prediction":
     st.subheader("Choose Model")
     model_choice = st.selectbox("Select Model", ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"])
 
+    # Initialize model
     if model_choice == "Random Forest":
         model = RandomForestClassifier(class_weight='balanced' if not balance else None)
     elif model_choice == "Logistic Regression":
@@ -423,6 +419,7 @@ elif page == "Prediction":
     elif model_choice == "XGBoost":
         model = XGBClassifier(use_label_encoder=False, eval_metric='mlogloss')
 
+    # Train model
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
@@ -450,75 +447,80 @@ elif page == "Prediction":
     # Sort all features by importance
     if importance:
         sorted_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)
-        top_features_names_plot = [f[0] for f in sorted_features]
-        top_features_values_plot = [f[1] for f in sorted_features]
+        feature_names_plot = [f[0] for f in sorted_features]
+        feature_values_plot = [f[1] for f in sorted_features]
 
         # Visualize all features
-        fig_top_features = px.bar(
-            x=top_features_values_plot,
-            y=top_features_names_plot,
+        fig_features = px.bar(
+            x=feature_values_plot,
+            y=feature_names_plot,
             orientation='h',
-            color=top_features_values_plot,
+            color=feature_values_plot,
             color_continuous_scale='RdBu',
             title=f"Feature Importance for {model_choice}",
             labels={'x': 'Importance', 'y': 'Feature'}
         )
-        fig_top_features.update_layout(yaxis=dict(autorange="reversed"))
-        st.plotly_chart(fig_top_features, use_container_width=True)
+        fig_features.update_layout(yaxis=dict(autorange="reversed"))
+        st.plotly_chart(fig_features, use_container_width=True)
 
-    # Determine top features based on importance
-top_n = 6  # maximum number of important features to display
-if importance:
-    sorted_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)
-    top_features_names = [f[0] for f in sorted_features[:top_n]]
-else:
-    top_features_names = []
+    # -------------------
+    # User input following feature importance
+    # -------------------
+    st.subheader("Enter your details for prediction")
+    input_widgets = {}
 
-# Always include Gender, BMI Category, and Occupation
-top_features_names = ["Gender", "BMI Category", "Occupation"] + top_features_names
-top_features_names = list(dict.fromkeys(top_features_names))  # remove duplicates
+    # Always include Gender and BMI Category
+    user_features = ["Gender", "BMI Category"] + [f[0] for f in sorted_features[:6]]  # Top 6 features
+    user_features = list(dict.fromkeys(user_features))  # Remove duplicates
 
-# User input section
-st.subheader("Enter your details for prediction")
-input_widgets = {}
+    # Populate Occupation choices dynamically from dataset
+    occupation_options = df_pred["Occupation"].unique().tolist()
 
-for feature in top_features_names:
-    if feature == "Gender":
-        input_widgets[feature] = st.selectbox("Gender", ["Male", "Female"])
-    elif feature == "BMI Category":
-        input_widgets[feature] = st.selectbox("BMI Category", ["Underweight", "Normal", "Overweight", "Obese"])
-    elif feature == "Occupation":
-        # Dropdown based on unique dataset occupations
-        occupations = df["Occupation"].dropna().unique().tolist()
-        input_widgets[feature] = st.selectbox("Occupation", occupations)
-    else:
-        # Numeric features as sliders
-        if feature == "Age":
-            input_widgets[feature] = st.slider("Age (years)", 18, 80, 25)
-        elif feature == "Sleep Duration":
-            input_widgets[feature] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0)
-        elif feature == "Quality of Sleep":
-            input_widgets[feature] = st.slider("Sleep Quality (1-10)", 1, 10, 7)
-        elif feature == "Physical Activity Level":
-            input_widgets[feature] = st.slider("Physical Activity Level (minutes/day)", 0, 300, 30)
-        elif feature == "Stress Level":
-            input_widgets[feature] = st.slider("Stress Level (1-10)", 1, 10, 5)
-        elif feature == "Heart Rate":
-            input_widgets[feature] = st.slider("Heart Rate (bpm)", 40, 120, 70)
-        elif feature == "Systolic":
-            input_widgets[feature] = st.slider("Systolic BP (mmHg)", 90, 180, 120)
-        elif feature == "Diastolic":
-            input_widgets[feature] = st.slider("Diastolic BP (mmHg)", 60, 120, 80)
-        elif feature == "Daily Steps":
-            input_widgets[feature] = st.slider("Daily Steps", 0, 20000, 5000)
+    for feature in user_features:
+        key_name = f"input_{feature}"
+        if feature == "Gender":
+            input_widgets[feature] = st.selectbox("Gender", ["Male", "Female"], key=key_name)
+        elif feature == "BMI Category":
+            input_widgets[feature] = st.selectbox("BMI Category", ["Underweight", "Normal", "Overweight", "Obese"], key=key_name)
+        elif feature == "Occupation":
+            input_widgets[feature] = st.selectbox("Occupation", occupation_options, key=key_name)
         else:
-            input_widgets[feature] = st.slider(feature, 0, 100, 0)
+            # Numeric features as sliders
+            if feature == "Age":
+                input_widgets[feature] = st.slider("Age (years)", 18, 80, 25, key=key_name)
+            elif feature == "Sleep Duration":
+                input_widgets[feature] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0, key=key_name)
+            elif feature == "Quality of Sleep":
+                input_widgets[feature] = st.slider("Sleep Quality (1-10)", 1, 10, 7, key=key_name)
+            elif feature == "Physical Activity Level":
+                input_widgets[feature] = st.slider("Physical Activity Level (minutes/day)", 0, 300, 30, key=key_name)
+            elif feature == "Stress Level":
+                input_widgets[feature] = st.slider("Stress Level (1-10)", 1, 10, 5, key=key_name)
+            elif feature == "Heart Rate":
+                input_widgets[feature] = st.slider("Heart Rate (bpm)", 40, 120, 70, key=key_name)
+            elif feature == "Systolic":
+                input_widgets[feature] = st.slider("Systolic BP (mmHg)", 90, 180, 120, key=key_name)
+            elif feature == "Diastolic":
+                input_widgets[feature] = st.slider("Diastolic BP (mmHg)", 60, 120, 80, key=key_name)
+            elif feature == "Daily Steps":
+                input_widgets[feature] = st.slider("Daily Steps", 0, 20000, 5000, key=key_name)
+            else:
+                input_widgets[feature] = st.slider(feature, 0, 100, 0, key=key_name)
 
-        # Convert input to dataframe
-        input_df = pd.DataFrame([input_widgets])
+    input_df = pd.DataFrame([input_widgets])
 
-    # Prediction
-    if st.button("\u2705 Predict Sleep Disorder"):
+    # Encode categorical columns
+    present_categoricals = [col for col in categorical_cols if col in input_df.columns]
+    input_encoded = pd.get_dummies(input_df, columns=present_categoricals, drop_first=True)
+
+    # Ensure all model-required columns exist
+    for col in features:
+        if col not in input_encoded.columns:
+            input_encoded[col] = 0
+    input_encoded = input_encoded[features]
+
+    # Prediction button
+    if st.button("\u2705 Predict Sleep Disorder", key="predict_button"):
         input_scaled = scaler.transform(input_encoded)
         prediction_encoded = model.predict(input_scaled)[0]
         prediction = le.inverse_transform([prediction_encoded])[0]
@@ -534,6 +536,7 @@ for feature in top_features_names:
         st.subheader("\U0001F50E Prediction Result")
         st.success(f"Predicted Sleep Disorder: {prediction}")
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
+
 
 
 
