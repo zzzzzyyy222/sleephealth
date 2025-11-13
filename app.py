@@ -455,6 +455,22 @@ elif page == "Prediction":
             top_features_names.append(cat)
 
     st.subheader("Enter your details for prediction")
+    # Visualize top features
+    if importance:
+    top_features_values = [importance[f[0]] for f in sorted_features[:6]]
+    top_features_names_plot = [f[0] for f in sorted_features[:6]]
+
+    fig_top_features = px.bar(
+        x=top_features_values,
+        y=top_features_names_plot,
+        orientation='h',
+        color=top_features_values,
+        color_continuous_scale='RdBu',
+        title=f"Top {len(top_features_names_plot)} Important Features for {model_choice}",
+        labels={'x': 'Importance', 'y': 'Feature'}
+    )
+    fig_top_features.update_layout(yaxis=dict(autorange="reversed"))  # Largest on top
+    st.plotly_chart(fig_top_features, use_container_width=True)
 
     # User input widgets
     input_widgets = {}
