@@ -349,7 +349,7 @@ elif page == "Prediction":
         df_pred["Diastolic"] = bp_split[1]
         df_pred = df_pred.drop(columns=["Blood Pressure"])
 
-    categorical_cols = ["Gender", "Occupation", "BMI Category"]
+    categorical_cols = ["Gender", "BMI Category"]  # Removed Occupation
     df_encoded = pd.get_dummies(df_pred, columns=categorical_cols, drop_first=True)
 
     features = [col for col in df_encoded.columns if col != "Sleep Disorder"]
@@ -473,17 +473,12 @@ elif page == "Prediction":
     user_features = ["Gender", "BMI Category"] + [f[0] for f in sorted_features[:6]]  # Top 6 features
     user_features = list(dict.fromkeys(user_features))  # Remove duplicates
 
-    # Populate Occupation choices dynamically from dataset
-    occupation_options = df_pred["Occupation"].unique().tolist()
-
     for feature in user_features:
         key_name = f"input_{feature}"
         if feature == "Gender":
             input_widgets[feature] = st.selectbox("Gender", ["Male", "Female"], key=key_name)
         elif feature == "BMI Category":
             input_widgets[feature] = st.selectbox("BMI Category", ["Underweight", "Normal", "Overweight", "Obese"], key=key_name)
-        elif feature == "Occupation":
-            input_widgets[feature] = st.selectbox("Occupation", occupation_options, key=key_name)
         else:
             # Numeric features as sliders
             if feature == "Age":
@@ -536,9 +531,6 @@ elif page == "Prediction":
         st.subheader("\U0001F50E Prediction Result")
         st.success(f"Predicted Sleep Disorder: {prediction}")
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
-
-
-
 
 
 
