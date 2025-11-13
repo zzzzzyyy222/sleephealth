@@ -337,6 +337,7 @@ elif page == "EDA":
 elif page == "Prediction":
     st.title("\U0001F52E Sleep Disorder Prediction")
 
+    # Prepare data
     df_pred = df.copy()
     df_pred["Sleep Disorder"] = df_pred["Sleep Disorder"].fillna("None")
     df_pred = df_pred.drop(columns=["Person ID"])
@@ -399,6 +400,7 @@ elif page == "Prediction":
         fig_balance.update_layout(xaxis_title="Class", yaxis_title="Count", title_x=0.3)
         st.plotly_chart(fig_balance, use_container_width=True)
 
+    # Model selection
     st.subheader("Choose Model")
     model_choice = st.selectbox("Select Model", ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"])
 
@@ -416,17 +418,16 @@ elif page == "Prediction":
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
+    # Evaluation
     report_dict = classification_report(y_test, y_pred, target_names=le.classes_, output_dict=True)
     report_df = pd.DataFrame(report_dict).transpose().round(2)
-
     st.subheader(f"{model_choice} Evaluation Metrics")
     st.markdown(f"- **Accuracy:** `{accuracy_score(y_test, y_pred):.2f}`")
     st.markdown(f"- **Classes:** `{', '.join(le.classes_)}`")
-
     with st.expander("\U0001F4D8 Classification Report", expanded=False):
         st.dataframe(report_df)
 
-    # Improved feature importance
+    # Feature importance
     importance = None
     if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
         importance = dict(zip(features, model.feature_importances_))
@@ -438,31 +439,40 @@ elif page == "Prediction":
 
     if importance:
         sorted_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)
-        top_n = min(10, len(sorted_features))
-        top_features = sorted_features[:top_n]
+        top_features_names = [f[0] for f in sorted_features[:6]]  # max 6 features
     else:
-        top_features, top_n = [], 0
+        top_features_names = []
 
     st.subheader("\U0001F9E0 Predict Sleep Disorder")
-    st.markdown(f"Showing top **{top_n} important features** based on {model_choice} importance ranking.")
+    st.markdown(f"Showing top **{len(top_features_names)} important features** based on {model_choice} importance ranking.")
 
-    # User Input Section (clarified labels, no KeyError)
-    st.subheader("Enter your details for prediction")
+    # User Input based on top features
+    input_widgets = {}
+    for feature in top_features_names:
+        if feature == "Gender":
+            input_widgets[feature] = st.selectbox("Gender", ["Male", "Female"])
+        elif feature == "BMI Category":
+            input_widgets[feature] = st.selectbox("BMI Category", ["Normal", "Overweight", "Obese"])
+        elif feature == "Age":
+            input_widgets[feature] = st.slider("Age (years)", 18, 80, 25)
+        elif feature == "Sleep Duration":
+            input_widgets[feature] = st.number_input("Sleep Duration (hours)", 0.0, 12.0, 7.0)
+        elif feature == "Quality of Sleep":
+            input_widgets[feature] = st.slider("Quality of Sleep (1-10)", 1, 10, 7)
+        elif feature == "Stress Level":
+            input_widgets[feature] = st.slider("Stress Level (1-10)", 1, 10, 5)
+        elif feature == "Heart Rate":
+            input_widgets[feature] = st.number_input("Heart Rate (bpm)", 40, 120, 70)
+        elif feature == "Systolic":
+            input_widgets[feature] = st.number_input("Systolic BP (mmHg)", 90, 180, 120)
+        elif feature == "Diastolic":
+            input_widgets[feature] = st.number_input("Diastolic BP (mmHg)", 60, 120, 80)
+        elif feature == "Daily Steps":
+            input_widgets[feature] = st.number_input("Daily Steps", 0, 20000, 5000)
+        else:
+            input_widgets[feature] = st.number_input(feature, 0, 100, 0)
 
-    input_dict = {
-        "Gender": st.selectbox("Gender: The gender of the person (Male/Female)", ["Male", "Female"]),
-        "Age": st.slider("Age: The age of the person in years", 18, 80, 25),
-        "Occupation": st.selectbox("Occupation: The occupation or profession of the person", ["Software Engineer", "Doctor", "Teacher"]),
-        "Sleep Duration": st.number_input("Sleep Duration (hours): The number of hours the person sleeps per day", 0.0, 12.0, 7.0),
-        "Quality of Sleep": st.slider("Quality of Sleep (scale: 1-10): A subjective rating of the quality of sleep", 1, 10, 7),
-        "Stress Level": st.slider("Stress Level (scale: 1-10): A subjective rating of the stress level", 1, 10, 5),
-        "BMI Category": st.selectbox("BMI Category: The BMI category of the person", ["Normal", "Overweight", "Obese"]),
-        "Heart Rate": st.number_input("Heart Rate (bpm): The resting heart rate of the person", 40, 120, 70),
-        "Systolic": st.number_input("Systolic BP (mmHg): Systolic blood pressure measurement", 90, 180, 120),
-        "Diastolic": st.number_input("Diastolic BP (mmHg): Diastolic blood pressure measurement", 60, 120, 80),
-        "Daily Steps": st.number_input("Daily Steps: The number of steps the person takes per day", 0, 20000, 5000)
-    }
-    input_df = pd.DataFrame([input_dict])
+    input_df = pd.DataFrame([input_widgets])
 
     # Encode only existing categoricals
     present_categoricals = [col for col in categorical_cols if col in input_df.columns]
@@ -474,6 +484,7 @@ elif page == "Prediction":
             input_encoded[col] = 0
     input_encoded = input_encoded[features]
 
+    # Prediction
     if st.button("\u2705 Predict Sleep Disorder"):
         input_scaled = scaler.transform(input_encoded)
         prediction_encoded = model.predict(input_scaled)[0]
@@ -490,4 +501,5 @@ elif page == "Prediction":
         st.subheader("\U0001F50E Prediction Result")
         st.success(f"Predicted Sleep Disorder: {prediction}")
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
+
 
