@@ -163,7 +163,7 @@ elif page == "EDA":
     col3.metric("Avg Stress Level", f"{filtered['Stress Level'].mean():.2f}")
     col4.metric("Avg Daily Steps", f"{filtered['Daily Steps'].mean():.0f}")
 
-    # Distribution of Sleep Quality (Bar chart instead of histogram)
+    # Distribution of Sleep Quality (bar chart for discrete values)
     st.subheader("Distribution of Sleep Quality")
     fig_quality = px.bar(
         filtered,
@@ -173,12 +173,6 @@ elif page == "EDA":
         color_discrete_sequence=px.colors.qualitative.Safe
     )
     st.plotly_chart(fig_quality, use_container_width=True)
-    st.markdown("""
-    **Overall Sleep Quality Levels**  
-    Most participants report **moderate sleep quality scores** (around 5–7).  
-    Very few participants achieved extremely high quality, indicating that **optimal rest is relatively uncommon**.  
-    Differences between genders appear minimal, although male participants show a slightly wider variation.  
-    """)
 
     # 2. Lifestyle & Occupation
     st.subheader("\U0001F52C Lifestyle Balance by Occupation (Radar Chart)")
@@ -228,22 +222,20 @@ elif page == "EDA":
 
     st.subheader("Average Sleep Quality by Activity Category")
     filtered["Activity Category"] = pd.cut(
-    filtered["Physical Activity Level"],
-    bins=[0, 30, 60, 120, 300],
-    labels=["Sedentary", "Low", "Moderate", "High"]
-   )
+        filtered["Physical Activity Level"],
+        bins=[0, 30, 60, 120, 300],
+        labels=["Sedentary", "Low", "Moderate", "High"]
+    )
     avg_quality = filtered.groupby("Activity Category")["Quality of Sleep"].mean().reset_index()
-    fig_simple = px.bar(
-    avg_quality,
-    x="Activity Category",
-    y="Quality of Sleep",
-    color="Activity Category",
-    color_discrete_sequence=px.colors.qualitative.Safe
-   )
-   st.plotly_chart(fig_simple, use_container_width=True)
+    fig_activity = px.bar(
+        avg_quality,
+        x="Activity Category",
+        y="Quality of Sleep",
+        color="Activity Category",
+        color_discrete_sequence=px.colors.qualitative.Safe
+    )
+    st.plotly_chart(fig_activity, use_container_width=True)
 
-
-    # Correlation Heatmap
     st.subheader("Correlation Heatmap")
     numeric_cols = filtered.select_dtypes(include=np.number).columns.tolist()
     cols_to_remove = ["Person ID", "Person_ID", "ID", "id"]
@@ -279,7 +271,6 @@ elif page == "EDA":
         x="Age",
         y="Sleep Duration",
         color="Sleep Disorder",
-        trendline="ols",
         color_discrete_sequence=px.colors.qualitative.Set1
     )
     st.plotly_chart(fig_age_sleep, use_container_width=True)
@@ -303,6 +294,7 @@ elif page == "EDA":
     - Stress consistently shows a negative relationship with sleep duration and quality.  
     These findings highlight the importance of **stress management, regular activity, and healthy routines** in improving sleep health.
     """)
+
 
 elif page == "Prediction":
     st.title("\U0001F52E Sleep Disorder Prediction")
