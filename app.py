@@ -147,152 +147,133 @@ Poor sleep can lead to stress, reduced productivity, and long-term health issues
 - Data-driven health insights  
 """)
 
-
 elif page == "EDA":
-    st.title("\U0001F4CA Exploratory Data Analysis")
-    image_path = "photo-1666875753105-c63a6f3bdc86.jpeg"
-    st.image(image_path, caption="", use_container_width=True)
+    st.title("📊 Exploratory Data Analysis")
+    st.image("photo-1666875753105-c63a6f3bdc86.jpeg", use_container_width=True)
 
-    # 1. General Sleep Patterns
-    st.title("\U0001F4CA Understanding Sleep Health Trends")
+    st.markdown("""
+    Explore how lifestyle and demographic factors influence sleep health, stress, and activity levels.
+    """)
+
+    # SECTION 1: OVERVIEW & LIFESTYLE PATTERNS
+    st.header("1️⃣ Overview & Lifestyle Patterns")
 
     # Summary Metrics
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Avg Sleep Duration", f"{filtered['Sleep Duration'].mean():.2f}")
-    col2.metric("Median Sleep Duration", f"{filtered['Sleep Duration'].median():.2f}")
-    col3.metric("Avg Stress Level", f"{filtered['Stress Level'].mean():.2f}")
+    col1.metric("Avg Sleep Duration (hrs)", f"{filtered['Sleep Duration'].mean():.2f}")
+    col2.metric("Avg Stress Level", f"{filtered['Stress Level'].mean():.2f}")
+    col3.metric("Avg Quality of Sleep", f"{filtered['Quality of Sleep'].mean():.2f}")
     col4.metric("Avg Daily Steps", f"{filtered['Daily Steps'].mean():.0f}")
 
-    # Distribution of Sleep Quality (bar chart for discrete values)
-    st.subheader("Distribution of Sleep Quality")
-    fig_quality = px.bar(
-        filtered,
-        x="Quality of Sleep",
-        color="Gender",
-        barmode="group",
-        color_discrete_sequence=px.colors.qualitative.Safe
-    )
-    st.plotly_chart(fig_quality, use_container_width=True)
-
-    # 2. Lifestyle & Occupation
-    st.subheader("\U0001F52C Lifestyle Balance by Occupation (Radar Chart)")
-    radar_data = (
-        filtered.groupby("Occupation")[["Sleep Duration", "Stress Level", "Physical Activity Level", "Quality of Sleep"]]
-        .mean()
-        .reset_index()
-    )
-    from sklearn.preprocessing import MinMaxScaler
-    scaler = MinMaxScaler()
-    scaled_values = scaler.fit_transform(radar_data.drop("Occupation", axis=1))
-    radar_scaled = pd.DataFrame(scaled_values, columns=["Sleep Duration", "Stress Level", "Physical Activity Level", "Quality of Sleep"])
-    radar_scaled["Occupation"] = radar_data["Occupation"]
-    radar_long = radar_scaled.melt(id_vars="Occupation", var_name="Metric", value_name="Value")
-    fig_radar = px.line_polar(
-        radar_long,
-        r="Value",
-        theta="Metric",
-        color="Occupation",
-        line_close=True,
-        color_discrete_sequence=px.colors.qualitative.Set2,
-        title="Lifestyle Balance Across Occupations"
-    )
-    fig_radar.update_traces(fill='toself', opacity=0.6)
-    st.plotly_chart(fig_radar, use_container_width=True)
-
-    st.subheader("Sleep Duration by Occupation")
+    # Sleep Duration by Occupation
+    st.subheader("🛏️ Sleep Duration by Occupation")
     fig_occ = px.box(filtered, x="Occupation", y="Sleep Duration", color="Occupation",
-                     color_discrete_sequence=px.colors.qualitative.Pastel)
+                     color_discrete_sequence=px.colors.qualitative.Set2)
     st.plotly_chart(fig_occ, use_container_width=True)
+    st.markdown("""
+    **Work Type and Sleep Patterns**  
+    Occupation affects how long people sleep. High-stress or shift-based jobs  
+    often result in shorter sleep durations compared to flexible or academic roles.
+    """)
 
-    # 3. Health & Activity Factors
-    st.subheader("Daily Steps vs Stress Level")
-    filtered["Step Category"] = pd.cut(
-        filtered["Daily Steps"],
-        bins=[0, 3000, 7000, 10000, 15000],
-        labels=["Sedentary", "Low", "Moderate", "High"]
-    )
-    fig_steps = px.box(
-        filtered,
-        x="Step Category",
-        y="Stress Level",
-        color="Step Category",
-        color_discrete_sequence=px.colors.qualitative.Set3
-    )
-    st.plotly_chart(fig_steps, use_container_width=True)
+    # Stress vs Quality of Sleep
+    st.subheader("💢 Stress Level vs Quality of Sleep")
+    fig_stress = px.scatter(filtered, x="Stress Level", y="Quality of Sleep",
+                            color="Gender", trendline="ols",
+                            color_discrete_sequence=px.colors.qualitative.Pastel)
+    st.plotly_chart(fig_stress, use_container_width=True)
+    st.markdown("""
+    **Stress and Sleep Quality Relationship**  
+    Higher stress levels clearly reduce sleep quality.  
+    Regular relaxation and stress control can lead to better rest.
+    """)
 
-    st.subheader("Average Sleep Quality by Activity Category")
-    filtered["Activity Category"] = pd.cut(
-        filtered["Physical Activity Level"],
-        bins=[0, 30, 60, 120, 300],
-        labels=["Sedentary", "Low", "Moderate", "High"]
-    )
-    avg_quality = filtered.groupby("Activity Category")["Quality of Sleep"].mean().reset_index()
-    fig_activity = px.bar(
-        avg_quality,
-        x="Activity Category",
-        y="Quality of Sleep",
-        color="Activity Category",
-        color_discrete_sequence=px.colors.qualitative.Safe
-    )
+    # Physical Activity vs Quality of Sleep
+    st.subheader("🏃‍♂️ Physical Activity vs Quality of Sleep")
+    fig_activity = px.box(filtered, x="Physical Activity Level", y="Quality of Sleep",
+                          color_discrete_sequence=["#00BFC4"])
     st.plotly_chart(fig_activity, use_container_width=True)
+    st.markdown("""
+    **Exercise and Sleep Connection**  
+    More active participants tend to report better sleep quality.  
+    Consistent physical movement supports body rhythms and relaxation.
+    """)
 
-    st.subheader("Correlation Heatmap")
+    # Correlation Heatmap
+    st.subheader("📈 Correlation Heatmap")
     numeric_cols = filtered.select_dtypes(include=np.number).columns.tolist()
-    cols_to_remove = ["Person ID", "Person_ID", "ID", "id"]
+    cols_to_remove = ["Person ID", "id", "Person_ID"]
     numeric_cols = [col for col in numeric_cols if col not in cols_to_remove]
     corr = filtered[numeric_cols].corr()
-    fig_corr, ax = plt.subplots(figsize=(8, 6))
-    sns.heatmap(corr, annot=True, cmap="Spectral", center=0, ax=ax, linewidths=0.5, fmt=".2f")
-    st.pyplot(fig_corr)
 
-    # 4. Sleep Disorders
-    st.subheader("Sleep Disorder Distribution")
+    fig_corr, ax = plt.subplots(figsize=(8, 6))
+    sns.heatmap(corr, annot=True, cmap="coolwarm", center=0, fmt=".2f", linewidths=0.5)
+    st.pyplot(fig_corr)
+    st.markdown("""
+    **Relationships Among Numeric Features**  
+    Sleep Duration and Stress Level show a negative relationship,  
+    while Physical Activity and Quality of Sleep are slightly positive.
+    """)
+
+    # SECTION 2: SLEEP DISORDER ANALYSIS
+    st.header("2️⃣ Sleep Disorder Analysis")
+
+    # Sleep Disorder Distribution
+    st.subheader("🩺 Sleep Disorder Distribution")
     disorder_counts = filtered["Sleep Disorder"].value_counts().reset_index()
     disorder_counts.columns = ["Sleep Disorder", "Count"]
     fig_disorder = px.pie(disorder_counts, names="Sleep Disorder", values="Count",
-                          color="Sleep Disorder", color_discrete_sequence=px.colors.qualitative.Set3)
+                          color_discrete_sequence=px.colors.qualitative.Set3)
     st.plotly_chart(fig_disorder, use_container_width=True)
+    st.markdown("""
+    **Overall Distribution**  
+    Insomnia and Sleep Apnea are the most reported disorders.  
+    Many participants have no disorder, showing lifestyle influence differences.
+    """)
 
-    st.subheader("Sleep Disorders by Age Group")
-    fig_age = px.histogram(filtered, x="Age", color="Sleep Disorder",
+    # Sleep Disorder by Gender
+    st.subheader("🚻 Sleep Disorders by Gender")
+    gender_disorder = filtered.groupby(["Gender", "Sleep Disorder"]).size().reset_index(name="Count")
+    fig_gender = px.bar(gender_disorder, x="Gender", y="Count", color="Sleep Disorder",
+                        barmode="group", color_discrete_sequence=px.colors.qualitative.Safe)
+    st.plotly_chart(fig_gender, use_container_width=True)
+    st.markdown("""
+    **Gender Differences**  
+    Females show slightly higher rates of Insomnia,  
+    while males tend to have more Sleep Apnea cases.
+    """)
+
+    # Sleep Disorder by Age
+    st.subheader("👶🧓 Sleep Disorders by Age Group")
+    fig_age = px.histogram(filtered, x="Age", color="Sleep Disorder", nbins=20,
                            barnorm='percent', color_discrete_sequence=px.colors.qualitative.Set1)
     st.plotly_chart(fig_age, use_container_width=True)
-
-    st.subheader("Sleep Disorder by BMI Category")
-    bmi_disorder = filtered.groupby("BMI Category")["Sleep Disorder"].count().reset_index()
-    fig_bmi = px.pie(bmi_disorder, names="BMI Category", values="Sleep Disorder",
-                     hole=0.4, color_discrete_sequence=px.colors.qualitative.Pastel)
-    st.plotly_chart(fig_bmi, use_container_width=True)
-
-    # 5. Additional Relationships
-    st.subheader("Age vs Sleep Duration")
-    fig_age_sleep = px.scatter(
-        filtered,
-        x="Age",
-        y="Sleep Duration",
-        color="Sleep Disorder",
-        color_discrete_sequence=px.colors.qualitative.Set1
-    )
-    st.plotly_chart(fig_age_sleep, use_container_width=True)
-
-    st.subheader("Stress vs Quality of Sleep")
-    fig_stress_quality = px.scatter(
-        filtered,
-        x="Stress Level",
-        y="Quality of Sleep",
-        color="Gender",
-        color_discrete_sequence=px.colors.qualitative.Bold
-    )
-    st.plotly_chart(fig_stress_quality, use_container_width=True)
-
-    # 6. Summary Insights
     st.markdown("""
-    ### 📌 Summary Insights
-    - Sleep quality is generally moderate, with few participants reporting excellent rest.  
-    - Occupation and lifestyle factors (steps, activity, stress) strongly influence sleep health.  
-    - Sleep disorders are most prevalent among middle-aged adults and those with higher BMI.  
-    - Stress consistently shows a negative relationship with sleep duration and quality.  
-    These findings highlight the importance of **stress management, regular activity, and healthy routines** in improving sleep health.
+    **Age Trends**  
+    Sleep issues increase with age. Middle-aged adults are most affected,  
+    likely due to higher work stress and lifestyle demands.
+    """)
+
+    # Sleep Disorder by BMI
+    st.subheader("⚖️ Sleep Disorder by BMI Category")
+    bmi_disorder = filtered.groupby("BMI Category")["Sleep Disorder"].value_counts().reset_index(name="Count")
+    fig_bmi = px.bar(bmi_disorder, x="BMI Category", y="Count", color="Sleep Disorder",
+                     barmode="group", color_discrete_sequence=px.colors.qualitative.Pastel)
+    st.plotly_chart(fig_bmi, use_container_width=True)
+    st.markdown("""
+    **BMI and Disorder Risk**  
+    Overweight and obese participants show more Sleep Apnea,  
+    indicating how body weight contributes to breathing-related sleep problems.
+    """)
+
+    # SECTION 3: INSIGHT SUMMARY
+    st.header("3️⃣ Summary of Insights")
+    st.markdown("""
+    - **Higher stress** and **low activity** lead to poorer sleep quality.  
+    - **Occupation** and **BMI** play a role in how much and how well people sleep.  
+    - **Sleep disorders** such as Insomnia and Sleep Apnea are more common among  
+      older, higher-stress, and higher-BMI groups.  
+    - Lifestyle management can effectively improve sleep and overall wellness.
     """)
 
 
