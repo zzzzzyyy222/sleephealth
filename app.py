@@ -445,7 +445,7 @@ elif page == "Prediction":
     # Sort all features by importance
     if importance:
         sorted_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)
-        top_features_names_plot = [f[0] for f in sorted_features]
+        top_features_names_plot = [f[0] for f in sorted_features]  # include all features
         top_features_values_plot = [f[1] for f in sorted_features]
 
         # Visualize all features
@@ -522,6 +522,7 @@ elif page == "Prediction":
         st.subheader("\U0001F50E Prediction Result")
         st.success(f"Predicted Sleep Disorder: {prediction}")
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
+
 
 
 
