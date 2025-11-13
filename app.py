@@ -176,15 +176,17 @@ elif page == "EDA":
         x="Occupation",
         y="Sleep Duration",
         color="Occupation",
-        color_discrete_sequence=px.colors.qualitative.Pastel
+        color_discrete_sequence=px.colors.qualitative.Pastel,
+        title="Sleep Duration by Occupation"
     )
+    fig_occ.update_layout(yaxis_title="Sleep Duration (hrs)")
     st.plotly_chart(fig_occ, use_container_width=True)
     st.markdown("""
     Sleep patterns can vary across different occupations due to varying demands and work schedules. Some occupations may show wider variations in sleep duration, reflecting differences in personal habits or responsibilities. Observing these patterns helps understand how work-life balance influences rest. The visualization provides a general overview of how occupation relates to sleep without focusing on specific values.
     """)
 
     # --- Distribution of Sleep Quality ---
-    st.subheader("💤 Distribution of Sleep Quality")
+    st.subheader("\U0001F4A4 Distribution of Sleep Quality")
     sleep_quality_counts = filtered.groupby(["Quality of Sleep", "Gender"]).size().reset_index(name="Count")
     fig_quality = px.bar(
         sleep_quality_counts,
@@ -202,14 +204,15 @@ elif page == "EDA":
     """)
 
     # --- Stress vs Sleep Quality ---
-    st.subheader("💢 Stress Level vs Average Sleep Quality")
+    st.subheader("\U0001F4A2 Stress Level vs Average Sleep Quality")
     avg_stress_sleep = filtered.groupby("Stress Level")["Quality of Sleep"].mean().reset_index()
     fig_stress = px.line(
         avg_stress_sleep,
         x="Stress Level",
         y="Quality of Sleep",
         markers=True,
-        color_discrete_sequence=["#FF6F61"]
+        color_discrete_sequence=["#FF6F61"],
+        title="Stress Level vs Average Sleep Quality"
     )
     fig_stress.update_layout(yaxis_title="Average Sleep Quality (1-10)")
     st.plotly_chart(fig_stress, use_container_width=True)
@@ -223,7 +226,7 @@ elif page == "EDA":
     st.header("2️⃣ Lifestyle & Physical Activity")
 
     # Physical Activity vs Sleep Quality (Scatter Plot)
-    st.subheader("🏃 Physical Activity Level vs Sleep Quality")
+    st.subheader("\U0001F3C3 Physical Activity Level vs Sleep Quality")
     fig_activity_sleep = px.scatter(
         filtered,
         x="Physical Activity Level",
@@ -233,8 +236,10 @@ elif page == "EDA":
         color_discrete_sequence=px.colors.qualitative.Pastel,
         title="Physical Activity Level vs Quality of Sleep"
     )
-    fig_activity_sleep.update_layout(yaxis_title="Quality of Sleep (1-10)")
-    fig_activity_sleep.update_layout(xaxis_title="Physical Activity Level(Minutes)")
+    fig_activity_sleep.update_layout(
+        yaxis_title="Quality of Sleep (1-10)",
+        xaxis_title="Physical Activity Level (minutes)"
+    )
     st.plotly_chart(fig_activity_sleep, use_container_width=True)
     st.markdown("""
     Participants with higher physical activity levels generally report better sleep quality. This suggests a positive relationship between exercise and restful sleep. The scatter plot allows us to observe overall patterns and trends rather than focusing on specific values. These insights highlight the potential benefits of regular activity on sleep health in a general context.
@@ -249,7 +254,7 @@ elif page == "EDA":
     numeric_cols = [col for col in numeric_cols if col not in cols_to_remove]
     corr = filtered[numeric_cols].corr()
 
-    st.subheader("📈 Correlation Heatmap")
+    st.subheader("\U0001F4C8 Correlation Heatmap")
     fig_heat, ax = plt.subplots(figsize=(8, 6))
     sns.heatmap(
         corr,
@@ -273,7 +278,7 @@ elif page == "EDA":
     st.header("4️⃣ Sleep Disorder Analysis")
 
     # Sleep Disorder Distribution (Pie)
-    st.subheader("🩺 Sleep Disorder Distribution")
+    st.subheader("\U0001FA7A Sleep Disorder Distribution")
     disorder_counts = filtered["Sleep Disorder"].value_counts().reset_index()
     disorder_counts.columns = ["Sleep Disorder", "Count"]
     fig_disorder = px.pie(
@@ -281,7 +286,8 @@ elif page == "EDA":
         names="Sleep Disorder",
         values="Count",
         color="Sleep Disorder",
-        color_discrete_sequence=px.colors.qualitative.Set3
+        color_discrete_sequence=px.colors.qualitative.Set3,
+        title="Sleep Disorder Distribution"
     )
     fig_disorder.update_traces(textinfo="percent+label")
     st.plotly_chart(fig_disorder, use_container_width=True)
@@ -290,14 +296,15 @@ elif page == "EDA":
     """)
 
     # Sleep Disorder by Age
-    st.subheader("👶🧓 Sleep Disorders by Age Group")
+    st.subheader("\U0001F476\U0001F9D3 Sleep Disorders by Age Group")
     fig_age = px.histogram(
         filtered,
         x="Age",
         color="Sleep Disorder",
         nbins=20,
         barnorm="percent",
-        color_discrete_sequence=px.colors.qualitative.Set1
+        color_discrete_sequence=px.colors.qualitative.Set1,
+        title="Sleep Disorders by Age Group"
     )
     st.plotly_chart(fig_age, use_container_width=True)
     st.markdown("""
@@ -305,7 +312,7 @@ elif page == "EDA":
     """)
 
     # Sleep Disorder by BMI Category
-    st.subheader("⚖️ Sleep Disorder by BMI Category")
+    st.subheader("\U00002696 Sleep Disorder by BMI Category")
     bmi_counts = filtered.groupby("BMI Category")["Sleep Disorder"].count().reset_index()
     bmi_counts.columns = ["BMI Category", "Count"]
     fig_bmi_donut = px.pie(
@@ -313,7 +320,8 @@ elif page == "EDA":
         names="BMI Category",
         values="Count",
         hole=0.4,
-        color_discrete_sequence=px.colors.qualitative.Pastel
+        color_discrete_sequence=px.colors.qualitative.Pastel,
+        title="Sleep Disorder by BMI Category"
     )
     fig_bmi_donut.update_traces(textinfo="label+value+percent", textposition="outside",
                                 hovertemplate="%{label}: %{value} (%{percent})")
@@ -322,6 +330,7 @@ elif page == "EDA":
     st.markdown("""
     Sleep disorder prevalence can differ across BMI categories, showing general trends rather than specific values. Patterns suggest potential associations between body composition and sleep health outcomes. Visualizing these relationships helps highlight populations that might benefit from lifestyle interventions. The donut chart provides an overview of how BMI relates to sleep disorders in the dataset.
     """)
+
 
    
 elif page == "Prediction":
