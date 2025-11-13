@@ -226,17 +226,22 @@ elif page == "EDA":
     )
     st.plotly_chart(fig_steps, use_container_width=True)
 
-    # Physical Activity vs Sleep Quality (scatter instead of boxplot)
-    st.subheader("Physical Activity vs Sleep Quality")
-    fig_activity = px.scatter(
-        filtered,
-        x="Physical Activity Level",
-        y="Quality of Sleep",
-        color="Gender",
-        trendline="ols",
-        color_discrete_sequence=px.colors.qualitative.Set1
-    )
-    st.plotly_chart(fig_activity, use_container_width=True)
+    st.subheader("Average Sleep Quality by Activity Category")
+    filtered["Activity Category"] = pd.cut(
+    filtered["Physical Activity Level"],
+    bins=[0, 30, 60, 120, 300],
+    labels=["Sedentary", "Low", "Moderate", "High"]
+   )
+    avg_quality = filtered.groupby("Activity Category")["Quality of Sleep"].mean().reset_index()
+    fig_simple = px.bar(
+    avg_quality,
+    x="Activity Category",
+    y="Quality of Sleep",
+    color="Activity Category",
+    color_discrete_sequence=px.colors.qualitative.Safe
+   )
+   st.plotly_chart(fig_simple, use_container_width=True)
+
 
     # Correlation Heatmap
     st.subheader("Correlation Heatmap")
