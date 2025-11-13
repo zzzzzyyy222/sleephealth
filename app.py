@@ -153,6 +153,7 @@ elif page == "EDA":
     image_path = "photo-1666875753105-c63a6f3bdc86.jpeg"
     st.image(image_path, caption="", use_container_width=True)
 
+    # 1. General Sleep Patterns
     st.title("\U0001F4CA Understanding Sleep Health Trends")
 
     # Summary Metrics
@@ -162,206 +163,142 @@ elif page == "EDA":
     col3.metric("Avg Stress Level", f"{filtered['Stress Level'].mean():.2f}")
     col4.metric("Avg Daily Steps", f"{filtered['Daily Steps'].mean():.0f}")
 
-    #1. Lifestyle Balance by Occupation
+    # Distribution of Sleep Quality (Bar chart instead of histogram)
+    st.subheader("Distribution of Sleep Quality")
+    fig_quality = px.bar(
+        filtered,
+        x="Quality of Sleep",
+        color="Gender",
+        barmode="group",
+        color_discrete_sequence=px.colors.qualitative.Safe
+    )
+    st.plotly_chart(fig_quality, use_container_width=True)
+    st.markdown("""
+    **Overall Sleep Quality Levels**  
+    Most participants report **moderate sleep quality scores** (around 5–7).  
+    Very few participants achieved extremely high quality, indicating that **optimal rest is relatively uncommon**.  
+    Differences between genders appear minimal, although male participants show a slightly wider variation.  
+    """)
+
+    # 2. Lifestyle & Occupation
     st.subheader("\U0001F52C Lifestyle Balance by Occupation (Radar Chart)")
-
     radar_data = (
-    filtered.groupby("Occupation")[["Sleep Duration", "Stress Level", "Physical Activity Level", "Quality of Sleep"]]
-    .mean()
-    .reset_index()
-)
-
-    # Normalize values for fair visual comparison (so all metrics use same scale)
+        filtered.groupby("Occupation")[["Sleep Duration", "Stress Level", "Physical Activity Level", "Quality of Sleep"]]
+        .mean()
+        .reset_index()
+    )
     from sklearn.preprocessing import MinMaxScaler
     scaler = MinMaxScaler()
     scaled_values = scaler.fit_transform(radar_data.drop("Occupation", axis=1))
     radar_scaled = pd.DataFrame(scaled_values, columns=["Sleep Duration", "Stress Level", "Physical Activity Level", "Quality of Sleep"])
     radar_scaled["Occupation"] = radar_data["Occupation"]
-
-    # Convert into long format for Plotly
     radar_long = radar_scaled.melt(id_vars="Occupation", var_name="Metric", value_name="Value")
-
     fig_radar = px.line_polar(
-    radar_long,
-    r="Value",
-    theta="Metric",
-    color="Occupation",
-    line_close=True,
-    color_discrete_sequence=px.colors.qualitative.Set2,
-    title="Lifestyle Balance Across Occupations"
-   )
+        radar_long,
+        r="Value",
+        theta="Metric",
+        color="Occupation",
+        line_close=True,
+        color_discrete_sequence=px.colors.qualitative.Set2,
+        title="Lifestyle Balance Across Occupations"
+    )
     fig_radar.update_traces(fill='toself', opacity=0.6)
-
     st.plotly_chart(fig_radar, use_container_width=True)
 
-
-    st.markdown("""
-**Understanding Lifestyle Balance Across Occupations**  
-This radar (spider) chart visualizes how different **occupations** perform across four key lifestyle indicators:  
-*Sleep Duration*,  *Stress Level*, *Physical Activity*, and *Quality of Sleep*.
-
-Each colored shape represents an occupation’s average profile, helping identify balanced or unhealthy patterns:
-- Occupations with **larger overall shapes** indicate **healthier lifestyles**, longer sleep, lower stress, higher activity, and better sleep quality.  
-- Jobs in **corporate or healthcare fields** may show **higher stress and lower sleep**, forming narrower radar shapes.  
-- Creative and academic roles often appear **more balanced**, maintaining moderate stress and better sleep quality.
-
-This visualization offers a holistic snapshot of how **work-life dynamics** affect sleep health and well-being.
-""")
-
-    # 2. Correlation Heatmap
-    st.subheader("Correlation Heatmap")
-    numeric_cols = filtered.select_dtypes(include=np.number).columns.tolist()
-    cols_to_remove = ["Person ID", "Person_ID", "ID", "id"]
-    numeric_cols = [col for col in numeric_cols if col not in cols_to_remove]
-
-    corr = filtered[numeric_cols].corr()
-
-    fig, ax = plt.subplots(figsize=(8, 6))
-    sns.heatmap(corr, annot=True, cmap="Spectral", center=0, ax=ax, linewidths=0.5, fmt=".2f")
-    st.pyplot(fig)
-    st.markdown("""
-    **Relationships Between Key Variables**  
-    This correlation map visually summarizes how variables interact with each other.  
-    A notable observation is the **negative correlation between Stress Level and Sleep Duration**, confirming that individuals under higher stress tend to sleep less.  
-    Meanwhile, **Physical Activity Level** shows a mild positive relationship with **Quality of Sleep**, suggesting that even moderate exercise contributes to better rest.  
-    These relationships help identify which variables might serve as strong predictors in modeling sleep disorders.
-    """)
-
-    # 3. Sleep Disorder Distribution
-    st.subheader("Sleep Disorder Distribution")
-    disorder_counts = filtered["Sleep Disorder"].value_counts().reset_index()
-    disorder_counts.columns = ["Sleep Disorder", "Count"]
-    fig4 = px.pie(disorder_counts, names="Sleep Disorder", values="Count", 
-                  color="Sleep Disorder", color_discrete_sequence=px.colors.qualitative.Set3)
-    st.plotly_chart(fig4, use_container_width=True)
-    st.markdown("""
-    **Distribution of Sleep Disorders Among Respondents**  
-    The pie chart shows that **Insomnia** is the most common sleep disorder, followed by **Sleep Apnea**.  
-    This pattern may reflect modern lifestyle factors such as stress, screen exposure, and irregular work hours.  
-    Understanding disorder distribution is crucial for **targeted awareness and intervention programs**, as it indicates where preventive education or treatment accessibility should be prioritized.
-    """)
-
-    # 4. Distribution of Sleep Quality (Histogram)
-    st.subheader("Distribution of Sleep Quality")
-    fig6 = px.histogram(
-        filtered, 
-        x="Quality of Sleep", 
-        nbins=10, 
-        color="Gender",  # Differentiate by gender for color contrast
-        barmode="overlay",
-        color_discrete_sequence=px.colors.qualitative.Safe
-    )
-    st.plotly_chart(fig6, use_container_width=True)
-    st.markdown("""
-    **Overall Sleep Quality Levels**  
-    This histogram shows that most participants report **moderate sleep quality scores** (around 5–7).  
-    Very few participants achieved extremely high quality, indicating that **optimal rest is relatively uncommon** in this dataset.  
-    Differences between genders appear minimal, although male participants show a slightly wider variation in reported quality.  
-    The findings highlight the need for interventions targeting **consistent sleep routines and stress management** to improve sleep quality.
-    """)
-    
-    # 5. Sleep Duration by Occupation
     st.subheader("Sleep Duration by Occupation")
-    fig2 = px.box(filtered, x="Occupation", y="Sleep Duration", color="Occupation", 
-                  color_discrete_sequence=px.colors.qualitative.Pastel)
-    st.plotly_chart(fig2, use_container_width=True)
-    st.markdown("""
-    **Occupational Influence on Sleep Duration**  
-    This boxplot highlights how work type affects sleep.  
-    Occupations with high mental or physical demands — such as corporate, healthcare, or technical jobs — show shorter and more varied sleep durations.  
-    On the other hand, those in creative or academic roles demonstrate more consistent and slightly longer sleep periods.  
-    The spread within each occupation also suggests **individual lifestyle differences**, indicating that factors like workload, shift schedules, and stress coping methods heavily influence rest patterns.
-    """)
-    
-    # 6. Sleep Disorder by Age (Stacked Percent Bar)
-    st.subheader("Sleep Disorders by Age Group")
-    fig7 = px.histogram(filtered, x="Age", color="Sleep Disorder",
-                        barnorm='percent', color_discrete_sequence=px.colors.qualitative.Set1)
-    st.plotly_chart(fig7, use_container_width=True)
-    st.markdown("""
-    **Age-Based Prevalence of Sleep Disorders**  
-    This chart indicates that sleep disorders are more frequent among **middle-aged and older adults**, where lifestyle stress and health factors accumulate.  
-    Younger participants (below 30) tend to show fewer disorders, possibly due to more flexible schedules and faster recovery rates.  
-    The pattern suggests that **preventive sleep education and stress awareness** should target working-age adults.
-    """)
+    fig_occ = px.box(filtered, x="Occupation", y="Sleep Duration", color="Occupation",
+                     color_discrete_sequence=px.colors.qualitative.Pastel)
+    st.plotly_chart(fig_occ, use_container_width=True)
 
-    # 7. Physical Activity vs Sleep Quality (Box Plot)
-    st.subheader("Physical Activity Level and Sleep Quality")
-    fig8 = px.box(filtered, x="Physical Activity Level", y="Quality of Sleep",
-                  color="Physical Activity Level", color_discrete_sequence=px.colors.qualitative.Safe)
-    st.plotly_chart(fig8, use_container_width=True)
-    st.markdown("""
-    **Effect of Physical Activity on Sleep Quality**  
-    This visualization reveals a clear relationship: participants with **higher physical activity** levels generally enjoy **better sleep quality**.  
-    The trend highlights the physiological benefits of exercise — such as improved mood regulation, reduced anxiety, and enhanced deep sleep cycles.  
-    Encouraging regular exercise routines may therefore be a **practical and cost-effective method** to enhance sleep health across all demographics.
-    """)
-
-    # 8. Sleep Disorder by BMI Category (Donut Chart)
-    st.subheader("Sleep Disorder by BMI Category")
-    bmi_disorder = filtered.groupby("BMI Category")["Sleep Disorder"].count().reset_index()
-    fig9 = px.pie(bmi_disorder, names="BMI Category", values="Sleep Disorder",
-                  hole=0.4, color_discrete_sequence=px.colors.qualitative.Pastel)
-    st.plotly_chart(fig9, use_container_width=True)
-    st.markdown("""
-    **Sleep Disorders and Body Mass Index**  
-    The donut chart demonstrates that individuals in the **overweight or obese BMI ranges** show slightly higher occurrences of sleep disorders.  
-    This aligns with existing research linking **body composition to sleep apnea and poor sleep efficiency**.  
-    Weight management and balanced diet programs could therefore play a significant role in improving sleep health outcomes.
-    """)
-
-    # 9. Daily Steps vs Stress Level
+    # 3. Health & Activity Factors
     st.subheader("Daily Steps vs Stress Level")
     filtered["Step Category"] = pd.cut(
         filtered["Daily Steps"],
         bins=[0, 3000, 7000, 10000, 15000],
         labels=["Sedentary", "Low", "Moderate", "High"]
     )
-    fig10 = px.box(
+    fig_steps = px.box(
         filtered,
         x="Step Category",
         y="Stress Level",
-        color_discrete_sequence=["#636EFA"],
-        title="Stress by Daily Steps Category"
+        color="Step Category",
+        color_discrete_sequence=px.colors.qualitative.Set3
     )
-    st.plotly_chart(fig10, use_container_width=True)
+    st.plotly_chart(fig_steps, use_container_width=True)
+
+    # Physical Activity vs Sleep Quality (scatter instead of boxplot)
+    st.subheader("Physical Activity vs Sleep Quality")
+    fig_activity = px.scatter(
+        filtered,
+        x="Physical Activity Level",
+        y="Quality of Sleep",
+        color="Gender",
+        trendline="ols",
+        color_discrete_sequence=px.colors.qualitative.Set1
+    )
+    st.plotly_chart(fig_activity, use_container_width=True)
+
+    # Correlation Heatmap
+    st.subheader("Correlation Heatmap")
+    numeric_cols = filtered.select_dtypes(include=np.number).columns.tolist()
+    cols_to_remove = ["Person ID", "Person_ID", "ID", "id"]
+    numeric_cols = [col for col in numeric_cols if col not in cols_to_remove]
+    corr = filtered[numeric_cols].corr()
+    fig_corr, ax = plt.subplots(figsize=(8, 6))
+    sns.heatmap(corr, annot=True, cmap="Spectral", center=0, ax=ax, linewidths=0.5, fmt=".2f")
+    st.pyplot(fig_corr)
+
+    # 4. Sleep Disorders
+    st.subheader("Sleep Disorder Distribution")
+    disorder_counts = filtered["Sleep Disorder"].value_counts().reset_index()
+    disorder_counts.columns = ["Sleep Disorder", "Count"]
+    fig_disorder = px.pie(disorder_counts, names="Sleep Disorder", values="Count",
+                          color="Sleep Disorder", color_discrete_sequence=px.colors.qualitative.Set3)
+    st.plotly_chart(fig_disorder, use_container_width=True)
+
+    st.subheader("Sleep Disorders by Age Group")
+    fig_age = px.histogram(filtered, x="Age", color="Sleep Disorder",
+                           barnorm='percent', color_discrete_sequence=px.colors.qualitative.Set1)
+    st.plotly_chart(fig_age, use_container_width=True)
+
+    st.subheader("Sleep Disorder by BMI Category")
+    bmi_disorder = filtered.groupby("BMI Category")["Sleep Disorder"].count().reset_index()
+    fig_bmi = px.pie(bmi_disorder, names="BMI Category", values="Sleep Disorder",
+                     hole=0.4, color_discrete_sequence=px.colors.qualitative.Pastel)
+    st.plotly_chart(fig_bmi, use_container_width=True)
+
+    # 5. Additional Relationships
+    st.subheader("Age vs Sleep Duration")
+    fig_age_sleep = px.scatter(
+        filtered,
+        x="Age",
+        y="Sleep Duration",
+        color="Sleep Disorder",
+        trendline="ols",
+        color_discrete_sequence=px.colors.qualitative.Set1
+    )
+    st.plotly_chart(fig_age_sleep, use_container_width=True)
+
+    st.subheader("Stress vs Quality of Sleep")
+    fig_stress_quality = px.scatter(
+        filtered,
+        x="Stress Level",
+        y="Quality of Sleep",
+        color="Gender",
+        color_discrete_sequence=px.colors.qualitative.Bold
+    )
+    st.plotly_chart(fig_stress_quality, use_container_width=True)
+
+    # 6. Summary Insights
     st.markdown("""
-    **Impact of Daily Physical Activity on Stress Levels**  
-    This boxplot illustrates that participants with **higher daily step counts** tend to have **lower stress levels**.  
-    The reduction is particularly visible beyond the "Moderate" activity category, suggesting that even modest movement helps mental well-being.  
-    Regular walking and physical activity can therefore act as a **preventive measure** against chronic stress and related sleep issues.
+    ### 📌 Summary Insights
+    - Sleep quality is generally moderate, with few participants reporting excellent rest.  
+    - Occupation and lifestyle factors (steps, activity, stress) strongly influence sleep health.  
+    - Sleep disorders are most prevalent among middle-aged adults and those with higher BMI.  
+    - Stress consistently shows a negative relationship with sleep duration and quality.  
+    These findings highlight the importance of **stress management, regular activity, and healthy routines** in improving sleep health.
     """)
-
-    # 10. Gender vs Sleep Disorder
-    st.subheader("Treemap of Sleep Disorders by Gender")
-
-    treemap_data = (
-    filtered.groupby(["Gender", "Sleep Disorder"])
-    .size()
-    .reset_index(name="Count")
-    )
-
-    fig_treemap = px.treemap(
-    treemap_data,
-    path=["Gender", "Sleep Disorder"],
-    values="Count",
-    color="Count",
-    color_continuous_scale="Tealgrn",
-    )
-
-    st.plotly_chart(fig_treemap, use_container_width=True)
-
-    st.markdown("""
-**Visualizing Sleep Disorders Across Gender Groups**  
-This treemap provides a **hierarchical view** of how sleep disorders are distributed between genders.  
-Each block represents a gender, subdivided by the type of sleep disorder (e.g., *Insomnia*, *Sleep Apnea*, *None*).  
-The **size** of each section corresponds to the **number of participants** within that category.  
-From this visualization, it’s clear that:
-- **Insomnia** is more prevalent among **female participants**, possibly linked to stress or multitasking demands.  
-- **Sleep Apnea** appears slightly more frequent among **male participants**, consistent with known medical trends.  
-- Individuals reporting **no disorder** form the largest segment, suggesting lifestyle and stress management play vital roles in prevention.  
-
-Overall, the treemap effectively illustrates **gender-based differences** while preserving an easy-to-understand hierarchy of sleep health categories.
+serving an easy-to-understand hierarchy of sleep health categories.
 """)
 
 elif page == "Prediction":
