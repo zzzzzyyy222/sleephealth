@@ -449,14 +449,14 @@ elif page == "Prediction":
     report_dict = classification_report(y_test, y_pred, target_names=le.classes_, output_dict=True)
     report_df = pd.DataFrame(report_dict).transpose().round(2)
 
-    st.subheader("\U+1F4CA " + f"{model_choice} Evaluation Metrics")  
+    st.subheader("{model_choice} Evaluation Metrics")  
     st.markdown(f"- **Accuracy:** `{accuracy_score(y_test, y_pred):.2f}`")
     st.markdown(f"- **Classes:** `{', '.join(le.classes_)}`")
 
     with st.expander("\U0001F4D8 Classification Report", expanded=False):
         st.dataframe(report_df)
 
-    # --- Feature Importance (calculated but not displayed) ---
+    # --- Feature Importance---
     importance = None
     if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
         importance = dict(zip(features, model.feature_importances_))
