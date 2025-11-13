@@ -1,20 +1,22 @@
-import streamlit as st
-import pandas as pd
+import os
 import numpy as np
-import plotly.express as px
-import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
+import matplotlib.pyplot as plt
+import plotly.express as px
+import streamlit as st
 from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, accuracy_score
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, accuracy_score
+from sklearn.inspection import permutation_importance
+from imblearn.over_sampling import SMOTE
+from scipy.stats import zscore
 from collections import Counter
-import plotly.express as px
-import os
 
 # Page config
 st.set_page_config(page_title="Sleep Health Dashboard", layout="wide")
@@ -335,7 +337,6 @@ elif page == "EDA":
 elif page == "Prediction":
     st.title("\U0001F52E Sleep Disorder Prediction")
 
-    # Prepare dataset
     df_pred = df.copy()
     df_pred["Sleep Disorder"] = df_pred["Sleep Disorder"].fillna("None")
     df_pred = df_pred.drop(columns=["Person ID"])
@@ -347,44 +348,32 @@ elif page == "Prediction":
         df_pred["Diastolic"] = bp_split[1]
         df_pred = df_pred.drop(columns=["Blood Pressure"])
 
-    # Encode categorical features
     categorical_cols = ["Gender", "Occupation", "BMI Category"]
     df_encoded = pd.get_dummies(df_pred, columns=categorical_cols, drop_first=True)
 
-    # Features and target
     features = [col for col in df_encoded.columns if col != "Sleep Disorder"]
     X_full = df_encoded[features].values
 
-    from sklearn.preprocessing import LabelEncoder
     le = LabelEncoder()
     y = le.fit_transform(df_encoded["Sleep Disorder"])
 
-    # Outlier removal
-    from scipy.stats import zscore
     numeric_cols = df_encoded.select_dtypes(include=[np.number]).columns.tolist()
     z_scores = np.abs(zscore(df_encoded[numeric_cols]))
     mask = (z_scores < 3).all(axis=1)
     X_full = X_full[mask]
     y = y[mask]
 
-    # Scaling
-    from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
     X = scaler.fit_transform(X_full)
 
-    # Train-test split
-    from sklearn.model_selection import train_test_split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    # SMOTE option
+    # SMOTE
     st.subheader("\U0001F4CA Class Balancing (SMOTE option)")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True)
 
-    from collections import Counter
     y_before_counts = Counter(y_train)
-
     if balance:
-        from imblearn.over_sampling import SMOTE
         smote = SMOTE(random_state=42)
         X_train, y_train = smote.fit_resample(X_train, y_train)
         st.info("SMOTE applied!")
@@ -400,31 +389,18 @@ elif page == "Prediction":
                      [y_after_counts.get(i, 0) for i in range(len(le.classes_))],
             "Stage": ["Before SMOTE"] * len(le.classes_) + ["After SMOTE"] * len(le.classes_)
         })
-
-        import plotly.express as px
         fig_balance = px.bar(
             df_balance,
-            x="Class",
-            y="Count",
-            color="Stage",
+            x="Class", y="Count", color="Stage",
             barmode="group",
             title="Class Distribution Before and After SMOTE",
             color_discrete_map={"Before SMOTE": "#62C3A5", "After SMOTE": "#F78364"}
         )
         fig_balance.update_layout(xaxis_title="Class", yaxis_title="Count", title_x=0.3)
         st.plotly_chart(fig_balance, use_container_width=True)
-    else:
-        st.info("SMOTE not applied — no balancing visualization to show.")
 
-    # Model selection
     st.subheader("Choose Model")
     model_choice = st.selectbox("Select Model", ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"])
-
-    from sklearn.ensemble import RandomForestClassifier
-    from sklearn.linear_model import LogisticRegression
-    from sklearn.svm import SVC
-    from sklearn.tree import DecisionTreeClassifier
-    from xgboost import XGBClassifier
 
     if model_choice == "Random Forest":
         model = RandomForestClassifier(class_weight='balanced' if not balance else None)
@@ -437,11 +413,9 @@ elif page == "Prediction":
     elif model_choice == "XGBoost":
         model = XGBClassifier(use_label_encoder=False, eval_metric='mlogloss')
 
-    # Train and evaluate
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
-    from sklearn.metrics import accuracy_score, classification_report
     report_dict = classification_report(y_test, y_pred, target_names=le.classes_, output_dict=True)
     report_df = pd.DataFrame(report_dict).transpose().round(2)
 
@@ -452,30 +426,30 @@ elif page == "Prediction":
     with st.expander("\U0001F4D8 Classification Report", expanded=False):
         st.dataframe(report_df)
 
-    # Feature importance
+    # Improved feature importance
     importance = None
     if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
         importance = dict(zip(features, model.feature_importances_))
     elif model_choice == "Logistic Regression":
         importance = dict(zip(features, abs(model.coef_[0])))
     elif model_choice == "SVM":
-        from sklearn.inspection import permutation_importance
         perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
         importance = dict(zip(features, perm.importances_mean))
 
-    # Top features
-    st.subheader("\U0001F9E0 Predict Sleep Disorder")
-    top_n = 10
-    top_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)[:top_n]
-    top_feature_names = [f[0] for f in top_features]
+    if importance:
+        sorted_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)
+        top_n = min(10, len(sorted_features))
+        top_features = sorted_features[:top_n]
+    else:
+        top_features, top_n = [], 0
 
+    st.subheader("\U0001F9E0 Predict Sleep Disorder")
     st.markdown(f"Showing top **{top_n} important features** based on {model_choice} importance ranking.")
 
-    # Input fields
     input_dict = {}
     used_categorical = set()
 
-    for feature in top_feature_names:
+    for feature, _ in top_features:
         if any(cat in feature for cat in ["Gender", "Occupation", "BMI Category"]):
             base_feature = "Gender" if "Gender" in feature else \
                            "Occupation" if "Occupation" in feature else "BMI Category"
@@ -489,18 +463,14 @@ elif page == "Prediction":
             input_dict[feature] = st.slider(f"{feature}", col_min, col_max, default)
 
     input_df = pd.DataFrame([input_dict])
-
-    # Encode only present categoricals
     present_categoricals = [col for col in categorical_cols if col in input_df.columns]
     input_encoded = pd.get_dummies(input_df, columns=present_categoricals, drop_first=True)
 
-    # Ensure all model features are present
     for col in features:
         if col not in input_encoded.columns:
             input_encoded[col] = 0
     input_encoded = input_encoded[features]
 
-    # Prediction
     if st.button("\u2705 Predict Sleep Disorder"):
         input_scaled = scaler.transform(input_encoded)
         prediction_encoded = model.predict(input_scaled)[0]
@@ -516,6 +486,8 @@ elif page == "Prediction":
 
         st.subheader("\U0001F50E Prediction Result")
         st.success(f"Predicted Sleep Disorder: {prediction}")
+        st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
+        st.subheader("\U0001F4CB Prediction Summary")
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
         st.subheader("\U0001F4CB Prediction Summary")
 
