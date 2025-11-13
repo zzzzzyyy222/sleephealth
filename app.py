@@ -332,7 +332,6 @@ elif page == "EDA":
     st.markdown("""
     Sleep disorder prevalence can differ across BMI categories, showing general trends rather than specific values. Patterns suggest potential associations between body composition and sleep health outcomes. Visualizing these relationships helps highlight populations that might benefit from lifestyle interventions. The donut chart provides an overview of how BMI relates to sleep disorders in the dataset.
     """)
-
 elif page == "Prediction":
     st.title("\U0001F52E Sleep Disorder Prediction")
 
@@ -377,12 +376,12 @@ elif page == "Prediction":
     from sklearn.model_selection import train_test_split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-   # SMOTE option
+    # SMOTE option
     st.subheader("\U0001F4CA Class Balancing (SMOTE option)")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True)
 
     from collections import Counter
-    original_counts = Counter(y_train)
+    y_before_counts = Counter(y_train)
 
     if balance:
         from imblearn.over_sampling import SMOTE
@@ -392,42 +391,30 @@ elif page == "Prediction":
     else:
         st.info("Oversampling not applied.")
 
+    # SMOTE visualization
+    if balance:
+        y_after_counts = Counter(y_train)
+        df_balance = pd.DataFrame({
+            "Class": list(le.classes_) * 2,
+            "Count": [y_before_counts.get(i, 0) for i in range(len(le.classes_))] +
+                     [y_after_counts.get(i, 0) for i in range(len(le.classes_))],
+            "Stage": ["Before SMOTE"] * len(le.classes_) + ["After SMOTE"] * len(le.classes_)
+        })
 
-# Count before SMOTE
-y_train_before = y_train if not balance else y[mask][y_train.index] if hasattr(y_train, 'index') else None
-
-if balance:
-    # Get counts before and after
-    y_before_counts = Counter(y[mask])  # Original counts
-    y_after_counts = Counter(y_train)   # After SMOTE
-
-    # Prepare DataFrame
-    df_balance = pd.DataFrame({
-        "Class": list(le.classes_) * 2,
-        "Count": [y_before_counts.get(i, 0) for i in range(len(le.classes_))] +
-                 [y_after_counts.get(i, 0) for i in range(len(le.classes_))],
-        "Stage": ["Before SMOTE"] * len(le.classes_) + ["After SMOTE"] * len(le.classes_)
-    })
-
-    # Plot
-    fig_balance = px.bar(
-        df_balance,
-        x="Class",
-        y="Count",
-        color="Stage",
-        barmode="group",
-        title="Class Distribution Before and After SMOTE",
-        color_discrete_map={"Before SMOTE": "#62C3A5", "After SMOTE": "#F78364"}
-    )
-    fig_balance.update_layout(
-        xaxis_title="Class",
-        yaxis_title="Count",
-        title_x=0.3
-    )
-    st.plotly_chart(fig_balance, use_container_width=True)
-
-else:
-    st.info("SMOTE not applied — no balancing visualization to show.")
+        import plotly.express as px
+        fig_balance = px.bar(
+            df_balance,
+            x="Class",
+            y="Count",
+            color="Stage",
+            barmode="group",
+            title="Class Distribution Before and After SMOTE",
+            color_discrete_map={"Before SMOTE": "#62C3A5", "After SMOTE": "#F78364"}
+        )
+        fig_balance.update_layout(xaxis_title="Class", yaxis_title="Count", title_x=0.3)
+        st.plotly_chart(fig_balance, use_container_width=True)
+    else:
+        st.info("SMOTE not applied — no balancing visualization to show.")
 
     # Model selection
     st.subheader("Choose Model")
@@ -522,6 +509,12 @@ else:
             "Insomnia": "You may be experiencing insomnia. Try to improve sleep hygiene, reduce screen time before bed, and manage stress levels.",
             "Sleep Apnea": "This often relates to breathing interruptions during sleep. Lifestyle changes such as weight management and sleeping on your side can help."
         }
+
+        st.subheader("\U0001F50E Prediction Result")
+        st.success(f"Predicted Sleep Disorder: {prediction}")
+        st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
+        st.subheader("\U0001F4CB Prediction Summary")
+
 
         st.subheader("\U0001F50E Prediction Result")
         st.success(f"Predicted Sleep Disorder: {prediction}")
