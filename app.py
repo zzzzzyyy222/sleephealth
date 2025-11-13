@@ -349,14 +349,17 @@ elif page == "Prediction":
         df_pred["Diastolic"] = bp_split[1]
         df_pred = df_pred.drop(columns=["Blood Pressure"])
 
-    # Only one-hot encode Gender and BMI Category
-    categorical_cols = ["Gender", "BMI Category"]
-    df_encoded = pd.get_dummies(df_pred, columns=categorical_cols, drop_first=True)
+    # Encode categorical columns numerically
+    categorical_cols = ["Gender", "BMI Category", "Occupation"]
+    df_encoded = df_pred.copy()
+    for col in categorical_cols:
+        le_col = LabelEncoder()
+        df_encoded[col] = le_col.fit_transform(df_encoded[col])
 
     features = [col for col in df_encoded.columns if col != "Sleep Disorder"]
     X_full = df_encoded[features].values
 
-    # Label encode target
+    # Target
     le = LabelEncoder()
     y = le.fit_transform(df_encoded["Sleep Disorder"])
 
@@ -466,12 +469,13 @@ elif page == "Prediction":
     # User input for prediction: include all features
     st.subheader("Enter your details for prediction")
     input_widgets = {}
-    user_features = ["Gender", "BMI Category"] + top_features_names_plot
-    for feature in user_features:
+    for feature in features:
         if feature == "Gender":
             input_widgets[feature] = st.selectbox("Gender", ["Male", "Female"])
         elif feature == "BMI Category":
-            input_widgets[feature] = st.selectbox("BMI Category", ["Normal", "Overweight", "Obese"])
+            input_widgets[feature] = st.selectbox("BMI Category", ["Underweight", "Normal", "Overweight"])
+        elif feature == "Occupation":
+            input_widgets[feature] = st.text_input("Occupation")
         else:
             # Numeric features as sliders
             if feature == "Age":
@@ -492,16 +496,16 @@ elif page == "Prediction":
                 input_widgets[feature] = st.slider("Diastolic BP (mmHg)", 60, 120, 80)
             elif feature == "Daily Steps":
                 input_widgets[feature] = st.slider("Daily Steps", 0, 20000, 5000)
-            elif feature == "Occupation":
-                input_widgets[feature] = st.text_input("Occupation: Enter your profession", "Software Engineer")
             else:
                 input_widgets[feature] = st.slider(feature, 0, 100, 0)
 
     input_df = pd.DataFrame([input_widgets])
 
     # Encode categorical columns
-    present_categoricals = [col for col in categorical_cols if col in input_df.columns]
-    input_encoded = pd.get_dummies(input_df, columns=present_categoricals, drop_first=True)
+    input_encoded = input_df.copy()
+    for col in ["Gender", "BMI Category", "Occupation"]:
+        le_col = LabelEncoder()
+        input_encoded[col] = le_col.fit_transform(input_encoded[col])
 
     # Ensure all model-required columns exist
     for col in features:
@@ -526,6 +530,7 @@ elif page == "Prediction":
         st.subheader("\U0001F50E Prediction Result")
         st.success(f"Predicted Sleep Disorder: {prediction}")
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
+
 
 
 
