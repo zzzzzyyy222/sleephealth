@@ -456,37 +456,16 @@ elif page == "Prediction":
     with st.expander("📘 Classification Report", expanded=False):
         st.dataframe(report_df)
 
-    # --- Feature Importance ---
-    st.subheader("🔍 Feature Importance")
-
-    importance = None
-    if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
-        importance = dict(zip(features, model.feature_importances_))
-    elif model_choice == "Logistic Regression":
-        importance = dict(zip(features, abs(model.coef_[0])))
-    elif model_choice == "SVM":
-        from sklearn.inspection import permutation_importance
-        perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
-        importance = dict(zip(features, perm.importances_mean))
-
-    if importance is not None:
-        imp_df = pd.DataFrame({
-            "Feature": list(importance.keys()),
-            "Importance": list(importance.values())
-        }).sort_values(by="Importance", ascending=False)
-
-        fig_imp = px.bar(
-            imp_df,
-            x="Feature",
-            y="Importance",
-            title=f"{model_choice} Feature Importance",
-            color="Importance",
-            color_continuous_scale="Blues"
-        )
-        st.plotly_chart(fig_imp, use_container_width=True)
-        st.dataframe(imp_df.set_index("Feature"))
-    else:
-        st.info(f"Feature importance is not available for {model_choice}.")
+  # --- Feature Importance (calculated but not displayed) ---
+importance = None
+if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
+    importance = dict(zip(features, model.feature_importances_))
+elif model_choice == "Logistic Regression":
+    importance = dict(zip(features, abs(model.coef_[0])))
+elif model_choice == "SVM":
+    from sklearn.inspection import permutation_importance
+    perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
+    importance = dict(zip(features, perm.importances_mean))
 
     # --- Prediction Input ---
     st.subheader("🧠 Predict Sleep Disorder")
