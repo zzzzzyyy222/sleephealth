@@ -299,7 +299,7 @@ elif page == "EDA":
     These findings highlight the importance of **stress management, regular activity, and healthy routines** in improving sleep health.
     """)
     serving an easy-to-understand hierarchy of sleep health categories.
-    """)
+
 
 elif page == "Prediction":
     st.title("\U0001F52E Sleep Disorder Prediction")
