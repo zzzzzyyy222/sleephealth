@@ -369,6 +369,14 @@ elif page == "Prediction":
     scaler = StandardScaler()
     X = scaler.fit_transform(X_full)
 
+    # Ensure numeric columns have no missing values
+    numeric_cols = df_encoded.select_dtypes(include=[np.number]).columns.tolist()
+    df_encoded[numeric_cols] = df_encoded[numeric_cols].fillna(df_encoded[numeric_cols].mean())
+
+    # Prepare X_full for scaler
+    X_full = df_encoded[features].values
+    X_full = X_full.astype(float)
+
     # Train-test split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
