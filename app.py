@@ -153,7 +153,8 @@ elif page == "EDA":
     st.image(image_path, caption="", use_container_width=True)
 
     st.markdown("""
-    Explore how lifestyle and demographic factors influence sleep health, stress, and activity levels.
+    Explore how lifestyle and demographic factors influence sleep health, stress, and activity levels. 
+    This section provides insights into sleep patterns, disorders, and the impact of physical activity across different participant groups.
     """)
 
     # -----------------------------
@@ -179,12 +180,10 @@ elif page == "EDA":
     )
     st.plotly_chart(fig_occ, use_container_width=True)
     st.markdown("""
-    Sleep duration varies across occupations. High-demand jobs often lead to shorter and more variable sleep, 
-    while creative or academic roles tend to have longer, more consistent sleep.  
-    The boxplot also shows outliers, reflecting individual lifestyle differences within the same occupation.
+    Sleep duration varies across occupations, with high-demand jobs often resulting in shorter and more variable sleep, while creative or academic roles tend to have longer and more consistent sleep. Outliers in the boxplot indicate individual differences in lifestyle habits within each occupation. Overall, these patterns suggest that both work type and personal routines strongly influence rest.
     """)
 
-    # --- Distribution of Sleep Quality (Bar Chart) ---
+    # --- Distribution of Sleep Quality ---
     st.subheader("💤 Distribution of Sleep Quality")
     sleep_quality_counts = filtered.groupby(["Quality of Sleep", "Gender"]).size().reset_index(name="Count")
     fig_quality = px.bar(
@@ -199,12 +198,10 @@ elif page == "EDA":
     fig_quality.update_layout(xaxis_title="Quality of Sleep (1-10)", yaxis_title="Count")
     st.plotly_chart(fig_quality, use_container_width=True)
     st.markdown("""
-    Most participants report moderate sleep quality (around 5–7).  
-    There are minimal gender differences, although males show slightly wider variation.  
-    Very few participants achieve optimal sleep, highlighting the importance of promoting consistent sleep routines and stress reduction.
+    Most participants report moderate sleep quality, typically around scores of 5–7, with little difference between genders. Very few achieve optimal sleep, indicating that consistent restorative rest is uncommon. This emphasizes the importance of promoting healthy sleep routines and stress management strategies to improve overall sleep quality.
     """)
 
-    # --- Stress vs Sleep Quality (Average Trend) ---
+    # --- Stress vs Sleep Quality ---
     st.subheader("💢 Stress Level vs Average Sleep Quality")
     avg_stress_sleep = filtered.groupby("Stress Level")["Quality of Sleep"].mean().reset_index()
     fig_stress = px.line(
@@ -217,9 +214,7 @@ elif page == "EDA":
     fig_stress.update_layout(yaxis_title="Average Sleep Quality (1-10)")
     st.plotly_chart(fig_stress, use_container_width=True)
     st.markdown("""
-    Higher stress levels are associated with lower average sleep quality.  
-    This trend underscores the impact of mental well-being on sleep.  
-    Interventions focusing on stress management could therefore improve overall sleep health.
+    Higher stress levels are associated with lower average sleep quality, demonstrating a clear negative trend. This relationship highlights the significant impact of mental well-being on restorative sleep. Managing stress effectively may therefore play a crucial role in improving sleep outcomes.
     """)
 
     # -----------------------------
@@ -241,9 +236,7 @@ elif page == "EDA":
     fig_activity_sleep.update_layout(yaxis_title="Quality of Sleep (1-10)")
     st.plotly_chart(fig_activity_sleep, use_container_width=True)
     st.markdown("""
-    Participants with higher physical activity levels tend to report better sleep quality.  
-    The positive trendline indicates a clear linear relationship.  
-    Regular exercise may improve sleep efficiency, deep sleep stages, and overall restfulness.
+    Participants with higher physical activity levels tend to experience better sleep quality. The positive trendline shows a linear relationship between activity and restfulness, suggesting that regular exercise contributes to improved sleep efficiency and deeper sleep cycles. Encouraging consistent physical activity could therefore enhance sleep health across all demographics.
     """)
 
     # -----------------------------
@@ -270,9 +263,7 @@ elif page == "EDA":
     ax.set_title("Correlation Matrix")
     st.pyplot(fig_heat)
     st.markdown("""
-    The heatmap shows relationships among numeric variables.  
-    Stress level negatively correlates with sleep duration, while physical activity positively correlates with sleep quality.  
-    Such correlations help identify important predictors for sleep health and potential targets for interventions.
+    The correlation heatmap highlights relationships between key variables. Stress level negatively correlates with sleep duration, indicating that higher stress reduces rest. Physical activity shows a positive correlation with sleep quality, reinforcing the benefits of an active lifestyle. These insights can inform predictive modeling and targeted interventions.
     """)
 
     # -----------------------------
@@ -294,12 +285,10 @@ elif page == "EDA":
     fig_disorder.update_traces(textinfo="percent+label")
     st.plotly_chart(fig_disorder, use_container_width=True)
     st.markdown("""
-    Insomnia is the most prevalent disorder, followed by sleep apnea.  
-    The pie chart emphasizes the relative proportion of each disorder.  
-    Understanding prevalence helps target awareness campaigns and preventive measures.
+    Insomnia is the most common sleep disorder among participants, followed by sleep apnea. The distribution suggests that lifestyle factors such as stress, screen exposure, and irregular schedules influence sleep health. Understanding these patterns is important for targeted interventions and awareness programs.
     """)
 
-    # Sleep Disorder by Age (stacked % histogram)
+    # Sleep Disorder by Age
     st.subheader("👶🧓 Sleep Disorders by Age Group")
     fig_age = px.histogram(
         filtered,
@@ -311,12 +300,10 @@ elif page == "EDA":
     )
     st.plotly_chart(fig_age, use_container_width=True)
     st.markdown("""
-    Sleep disorders are more common among middle-aged and older adults.  
-    Younger participants show lower prevalence, likely due to faster recovery and more flexible routines.  
-    Age-targeted education and stress management programs may help reduce disorder incidence.
+    Sleep disorders are more prevalent among middle-aged and older adults, likely due to accumulated stress and health conditions. Younger participants show fewer disorders, reflecting faster recovery and more flexible schedules. These insights suggest that preventive education should focus on working-age populations.
     """)
 
-    # Sleep Disorder by BMI Category 
+    # Sleep Disorder by BMI Category
     st.subheader("⚖️ Sleep Disorder by BMI Category")
     bmi_counts = filtered.groupby("BMI Category")["Sleep Disorder"].count().reset_index()
     bmi_counts.columns = ["BMI Category", "Count"]
@@ -332,9 +319,7 @@ elif page == "EDA":
     fig_bmi_donut.update_layout(margin=dict(t=30, b=0, l=0, r=0))
     st.plotly_chart(fig_bmi_donut, use_container_width=True)
     st.markdown("""
-    Sleep disorders are slightly more frequent among overweight and obese participants.  
-    The donut chart shows both counts and percentages for clarity.  
-    Maintaining a healthy BMI may reduce the risk of sleep-related issues and improve overall rest quality.
+    Individuals in overweight or obese BMI categories exhibit slightly higher occurrences of sleep disorders. This aligns with research linking body composition to conditions like sleep apnea and poor sleep efficiency. Maintaining a healthy weight may therefore contribute to better sleep outcomes and overall well-being.
     """)
 
 
