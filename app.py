@@ -331,7 +331,7 @@ elif page == "EDA":
     Sleep disorder prevalence can differ across BMI categories, showing general trends rather than specific values. Patterns suggest potential associations between body composition and sleep health outcomes. Visualizing these relationships helps highlight populations that might benefit from lifestyle interventions. The donut chart provides an overview of how BMI relates to sleep disorders in the dataset.
     """)
 
- elif page == "Prediction":
+elif page == "Prediction":
     st.title("\U0001F52E Sleep Disorder Prediction")
 
     # Prepare dataset
