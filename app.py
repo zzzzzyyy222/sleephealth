@@ -349,13 +349,12 @@ elif page == "Prediction":
         df_pred["Diastolic"] = bp_split[1]
         df_pred = df_pred.drop(columns=["Blood Pressure"])
 
-    # Identify categorical columns
     categorical_cols = ["Gender", "Occupation", "BMI Category"]
     df_encoded = pd.get_dummies(df_pred, columns=categorical_cols, drop_first=True)
 
-    # Features and target
     features = [col for col in df_encoded.columns if col != "Sleep Disorder"]
     X_full = df_encoded[features].values
+
     le = LabelEncoder()
     y = le.fit_transform(df_encoded["Sleep Disorder"])
 
@@ -376,6 +375,7 @@ elif page == "Prediction":
     # SMOTE
     st.subheader("\U0001F4CA Class Balancing (SMOTE option)")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True)
+
     y_before_counts = Counter(y_train)
     if balance:
         smote = SMOTE(random_state=42)
@@ -418,16 +418,17 @@ elif page == "Prediction":
     elif model_choice == "XGBoost":
         model = XGBClassifier(use_label_encoder=False, eval_metric='mlogloss')
 
-    # Train model
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
     # Evaluation metrics
     report_dict = classification_report(y_test, y_pred, target_names=le.classes_, output_dict=True)
     report_df = pd.DataFrame(report_dict).transpose().round(2)
+
     st.subheader(f"{model_choice} Evaluation Metrics")
     st.markdown(f"- **Accuracy:** `{accuracy_score(y_test, y_pred):.2f}`")
     st.markdown(f"- **Classes:** `{', '.join(le.classes_)}`")
+
     with st.expander("\U0001F4D8 Classification Report", expanded=False):
         st.dataframe(report_df)
 
@@ -441,28 +442,28 @@ elif page == "Prediction":
         perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
         importance = dict(zip(features, perm.importances_mean))
 
-    # Visualize top 6 features
+    # Sort all features by importance
     if importance:
         sorted_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)
-        top_features_names_plot = [f[0] for f in sorted_features[:6]]
-        top_features_values_plot = [f[1] for f in sorted_features[:6]]
+        top_features_names_plot = [f[0] for f in sorted_features]
+        top_features_values_plot = [f[1] for f in sorted_features]
 
+        # Visualize all features
         fig_top_features = px.bar(
             x=top_features_values_plot,
             y=top_features_names_plot,
             orientation='h',
             color=top_features_values_plot,
             color_continuous_scale='RdBu',
-            title=f"Top {len(top_features_names_plot)} Important Features for {model_choice}",
+            title=f"Feature Importance for {model_choice}",
             labels={'x': 'Importance', 'y': 'Feature'}
         )
         fig_top_features.update_layout(yaxis=dict(autorange="reversed"))
         st.plotly_chart(fig_top_features, use_container_width=True)
 
-    # User input for prediction
+    # User input for prediction: include all features
     st.subheader("Enter your details for prediction")
     input_widgets = {}
-    # Always include Gender and BMI Category
     user_features = ["Gender", "BMI Category"] + top_features_names_plot
     for feature in user_features:
         if feature == "Gender":
@@ -493,27 +494,31 @@ elif page == "Prediction":
                 input_widgets[feature] = st.slider(feature, 0, 100, 0)
 
     input_df = pd.DataFrame([input_widgets])
+
     # Encode categorical columns
     present_categoricals = [col for col in categorical_cols if col in input_df.columns]
     input_encoded = pd.get_dummies(input_df, columns=present_categoricals, drop_first=True)
+
     # Ensure all model-required columns exist
     for col in features:
         if col not in input_encoded.columns:
             input_encoded[col] = 0
     input_encoded = input_encoded[features]
 
-    # Prediction button
+    # Prediction
     if st.button("\u2705 Predict Sleep Disorder"):
         input_scaled = scaler.transform(input_encoded)
         prediction_encoded = model.predict(input_scaled)[0]
         prediction = le.inverse_transform([prediction_encoded])[0]
         if prediction == "None":
             prediction = "Normal Sleep"
+
         advice_map = {
             "Normal Sleep": "Your sleep pattern looks healthy. Keep maintaining good habits like regular exercise and consistent bedtimes.",
             "Insomnia": "You may be experiencing insomnia. Try to improve sleep hygiene, reduce screen time before bed, and manage stress levels.",
             "Sleep Apnea": "This often relates to breathing interruptions during sleep. Lifestyle changes such as weight management and sleeping on your side can help."
         }
+
         st.subheader("\U0001F50E Prediction Result")
         st.success(f"Predicted Sleep Disorder: {prediction}")
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
