@@ -379,6 +379,9 @@ elif page == "Prediction":
     st.subheader("\U0001F4CA Class Balancing (SMOTE option)")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True)
 
+    from collections import Counter
+    original_counts = Counter(y_train)
+
     if balance:
         from imblearn.over_sampling import SMOTE
         smote = SMOTE(random_state=42)
@@ -386,6 +389,26 @@ elif page == "Prediction":
         st.info("SMOTE applied!")
     else:
         st.info("Oversampling not applied.")
+
+    balanced_counts = Counter(y_train)
+    labels = le.classes_
+    before = [original_counts[i] for i in range(len(labels))]
+    after = [balanced_counts[i] for i in range(len(labels))]
+
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    bar_width = 0.35
+    x = np.arange(len(labels))
+
+    ax.bar(x - bar_width/2, before, bar_width, label='Before SMOTE', color='green')
+    ax.bar(x + bar_width/2, after, bar_width, label='After SMOTE', color='orange')
+    ax.set_xlabel('Class')
+    ax.set_ylabel('Count')
+    ax.set_title('Class Distribution Before and After SMOTE')
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    ax.legend()
+    st.pyplot(fig)
 
     # Model selection
     st.subheader("Choose Model")
@@ -434,10 +457,23 @@ elif page == "Prediction":
         perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
         importance = dict(zip(features, perm.importances_mean))
 
+    # Cumulative importance plot
+    sorted_importance = sorted(importance.items(), key=lambda x: x[1], reverse=True)
+    values = [v for _, v in sorted_importance]
+    cumulative = np.cumsum(values) / sum(values)
+
+    fig2, ax2 = plt.subplots()
+    ax2.plot(range(1, len(cumulative)+1), cumulative, marker='o')
+    ax2.set_xlabel("Number of Features")
+    ax2.set_ylabel("Cumulative Importance")
+    ax2.set_title("Cumulative Feature Importance")
+    ax2.grid(True)
+    st.pyplot(fig2)
+
     # Top features
     st.subheader("\U0001F9E0 Predict Sleep Disorder")
-    top_n = 10
-    top_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)[:top_n]
+    top_n = st.slider("Select number of top features", 5, 20, value=10)
+    top_features = sorted_importance[:top_n]
     top_feature_names = [f[0] for f in top_features]
 
     st.markdown(f"Showing top **{top_n} important features** based on {model_choice} importance ranking.")
@@ -485,4 +521,5 @@ elif page == "Prediction":
         st.success(f"Predicted Sleep Disorder: {prediction}")
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
         st.subheader("\U0001F4CB Prediction Summary")
+
 
