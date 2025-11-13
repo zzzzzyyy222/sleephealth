@@ -180,7 +180,7 @@ elif page == "EDA":
     )
     st.plotly_chart(fig_occ, use_container_width=True)
     st.markdown("""
-    Sleep duration varies across occupations, with high-demand jobs often resulting in shorter and more variable sleep, while creative or academic roles tend to have longer and more consistent sleep. Outliers in the boxplot indicate individual differences in lifestyle habits within each occupation. Overall, these patterns suggest that both work type and personal routines strongly influence rest.
+    Sleep patterns can vary across different occupations due to varying demands and work schedules. Some occupations may show wider variations in sleep duration, reflecting differences in personal habits or responsibilities. Observing these patterns helps understand how work-life balance influences rest. The visualization provides a general overview of how occupation relates to sleep without focusing on specific values.
     """)
 
     # --- Distribution of Sleep Quality ---
@@ -198,7 +198,7 @@ elif page == "EDA":
     fig_quality.update_layout(xaxis_title="Quality of Sleep (1-10)", yaxis_title="Count")
     st.plotly_chart(fig_quality, use_container_width=True)
     st.markdown("""
-    Most participants report moderate sleep quality, typically around scores of 5–7, with little difference between genders. Very few achieve optimal sleep, indicating that consistent restorative rest is uncommon. This emphasizes the importance of promoting healthy sleep routines and stress management strategies to improve overall sleep quality.
+    Sleep quality varies across individuals and can be influenced by factors like stress, lifestyle, and daily habits. The distribution shows general trends in how participants report their rest without focusing on precise counts. Differences between groups may indicate patterns worth further exploration. Overall, this visualization helps identify broad trends in sleep quality across the population.
     """)
 
     # --- Stress vs Sleep Quality ---
@@ -214,7 +214,7 @@ elif page == "EDA":
     fig_stress.update_layout(yaxis_title="Average Sleep Quality (1-10)")
     st.plotly_chart(fig_stress, use_container_width=True)
     st.markdown("""
-    Higher stress levels are associated with lower average sleep quality, demonstrating a clear negative trend. This relationship highlights the significant impact of mental well-being on restorative sleep. Managing stress effectively may therefore play a crucial role in improving sleep outcomes.
+    There is a general relationship between stress and sleep quality, where higher stress tends to relate to lower quality of sleep. This trend highlights the importance of mental and emotional well-being for restful sleep. Observing patterns across participants helps identify how stress may impact sleep in different contexts. The chart provides a high-level view of this relationship without specifying numerical values.
     """)
 
     # -----------------------------
@@ -236,7 +236,7 @@ elif page == "EDA":
     fig_activity_sleep.update_layout(yaxis_title="Quality of Sleep (1-10)")
     st.plotly_chart(fig_activity_sleep, use_container_width=True)
     st.markdown("""
-    Participants with higher physical activity levels tend to experience better sleep quality. The positive trendline shows a linear relationship between activity and restfulness, suggesting that regular exercise contributes to improved sleep efficiency and deeper sleep cycles. Encouraging consistent physical activity could therefore enhance sleep health across all demographics.
+    Participants with higher physical activity levels generally report better sleep quality. This suggests a positive relationship between exercise and restful sleep. The scatter plot allows us to observe overall patterns and trends rather than focusing on specific values. These insights highlight the potential benefits of regular activity on sleep health in a general context.
     """)
 
     # -----------------------------
@@ -263,7 +263,7 @@ elif page == "EDA":
     ax.set_title("Correlation Matrix")
     st.pyplot(fig_heat)
     st.markdown("""
-    The correlation heatmap highlights relationships between key variables. Stress level negatively correlates with sleep duration, indicating that higher stress reduces rest. Physical activity shows a positive correlation with sleep quality, reinforcing the benefits of an active lifestyle. These insights can inform predictive modeling and targeted interventions.
+    The correlation heatmap shows how numerical variables relate to each other. Positive or negative trends indicate general patterns in the data without relying on exact numbers. Observing correlations helps identify which factors are associated with better or worse sleep. This visualization provides a high-level overview of potential relationships for further exploration.
     """)
 
     # -----------------------------
@@ -285,7 +285,7 @@ elif page == "EDA":
     fig_disorder.update_traces(textinfo="percent+label")
     st.plotly_chart(fig_disorder, use_container_width=True)
     st.markdown("""
-    Insomnia is the most common sleep disorder among participants, followed by sleep apnea. The distribution suggests that lifestyle factors such as stress, screen exposure, and irregular schedules influence sleep health. Understanding these patterns is important for targeted interventions and awareness programs.
+    The distribution of sleep disorders shows general prevalence patterns among participants. Some disorders appear more frequently, while others are less common. This overview helps identify areas for awareness or intervention without emphasizing specific counts. Understanding overall trends allows for a broad view of sleep health across the population.
     """)
 
     # Sleep Disorder by Age
@@ -300,7 +300,7 @@ elif page == "EDA":
     )
     st.plotly_chart(fig_age, use_container_width=True)
     st.markdown("""
-    Sleep disorders are more prevalent among middle-aged and older adults, likely due to accumulated stress and health conditions. Younger participants show fewer disorders, reflecting faster recovery and more flexible schedules. These insights suggest that preventive education should focus on working-age populations.
+    Sleep disorders may vary with age, showing general patterns of prevalence across different age groups. Observing these trends helps understand how life stage and lifestyle might influence sleep health. The visualization provides an overall perspective rather than exact numbers. This can inform broad strategies for preventive measures and health promotion.
     """)
 
     # Sleep Disorder by BMI Category
@@ -319,9 +319,8 @@ elif page == "EDA":
     fig_bmi_donut.update_layout(margin=dict(t=30, b=0, l=0, r=0))
     st.plotly_chart(fig_bmi_donut, use_container_width=True)
     st.markdown("""
-    Individuals in overweight or obese BMI categories exhibit slightly higher occurrences of sleep disorders. This aligns with research linking body composition to conditions like sleep apnea and poor sleep efficiency. Maintaining a healthy weight may therefore contribute to better sleep outcomes and overall well-being.
+    Sleep disorder prevalence can differ across BMI categories, showing general trends rather than specific values. Patterns suggest potential associations between body composition and sleep health outcomes. Visualizing these relationships helps highlight populations that might benefit from lifestyle interventions. The donut chart provides an overview of how BMI relates to sleep disorders in the dataset.
     """)
-
 
    
 elif page == "Prediction":
