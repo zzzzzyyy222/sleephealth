@@ -337,37 +337,27 @@ elif page == "Prediction":
     # Prepare dataset
     df_pred = df.copy()
     df_pred["Sleep Disorder"] = df_pred["Sleep Disorder"].fillna("None")
-    df_pred = df_pred.drop(columns=["Person ID"])  # drop identifier
+    df_pred = df_pred.drop(columns=["Person ID"])
 
-    # Split blood pressure into systolic/diastolic if needed
+    # Split blood pressure
     if "Blood Pressure" in df_pred.columns:
         bp_split = df_pred["Blood Pressure"].str.split("/", expand=True).astype(float)
         df_pred["Systolic"] = bp_split[0]
         df_pred["Diastolic"] = bp_split[1]
         df_pred = df_pred.drop(columns=["Blood Pressure"])
 
-    # Encode categorical features using pandas
+    # Encode categorical features
     categorical_cols = ["Gender", "Occupation", "BMI Category"]
     df_encoded = pd.get_dummies(df_pred, columns=categorical_cols, drop_first=True)
 
-    # Build features and target
+    # Features and target
     features = [col for col in df_encoded.columns if col != "Sleep Disorder"]
     X_full = df_encoded[features].values
-
-    from sklearn.preprocessing import LabelEncoder, StandardScaler
-    from sklearn.model_selection import train_test_split
-    from sklearn.ensemble import RandomForestClassifier
-    from sklearn.linear_model import LogisticRegression
-    from sklearn.tree import DecisionTreeClassifier
-    from sklearn.svm import SVC
-    from xgboost import XGBClassifier
-    import numpy as np
-    import pandas as pd
 
     le = LabelEncoder()
     y = le.fit_transform(df_encoded["Sleep Disorder"])
 
-    # Outlier Detection (Z-score)
+    # Outlier removal
     from scipy.stats import zscore
     numeric_cols = df_encoded.select_dtypes(include=[np.number]).columns.tolist()
     z_scores = np.abs(zscore(df_encoded[numeric_cols]))
@@ -375,14 +365,14 @@ elif page == "Prediction":
     X_full = X_full[mask]
     y = y[mask]
 
-    # Feature Scaling
+    # Scaling
     scaler = StandardScaler()
     X = scaler.fit_transform(X_full)
 
     # Train-test split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    # Class Balancing
+    # SMOTE option
     st.subheader("\U0001F4CA Class Balancing (SMOTE option)")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True)
 
@@ -390,18 +380,14 @@ elif page == "Prediction":
         from imblearn.over_sampling import SMOTE
         smote = SMOTE(random_state=42)
         X_train, y_train = smote.fit_resample(X_train, y_train)
-        st.info("SMOTE applied!")  
+        st.info("SMOTE applied!")
     else:
-        st.info("Oversampling not applied.")  
+        st.info("Oversampling not applied.")
 
     # Model selection
-    st.subheader("Choose Model") 
-    model_choice = st.selectbox(
-        "Select Model",
-        ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"]
-    )
+    st.subheader("Choose Model")
+    model_choice = st.selectbox("Select Model", ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"])
 
-    # Initialize Model
     if model_choice == "Random Forest":
         model = RandomForestClassifier(class_weight='balanced' if not balance else None)
     elif model_choice == "Logistic Regression":
@@ -413,23 +399,22 @@ elif page == "Prediction":
     elif model_choice == "XGBoost":
         model = XGBClassifier(use_label_encoder=False, eval_metric='mlogloss')
 
-    # Train model
+    # Train and evaluate
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
-    # Evaluation metrics
     from sklearn.metrics import accuracy_score, classification_report
     report_dict = classification_report(y_test, y_pred, target_names=le.classes_, output_dict=True)
     report_df = pd.DataFrame(report_dict).transpose().round(2)
 
-    st.subheader(f"{model_choice} Evaluation Metrics")  
+    st.subheader(f"{model_choice} Evaluation Metrics")
     st.markdown(f"- **Accuracy:** `{accuracy_score(y_test, y_pred):.2f}`")
     st.markdown(f"- **Classes:** `{', '.join(le.classes_)}`")
 
     with st.expander("\U0001F4D8 Classification Report", expanded=False):
         st.dataframe(report_df)
 
-    # --- Feature Importance---
+    # Feature importance
     importance = None
     if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
         importance = dict(zip(features, model.feature_importances_))
@@ -440,42 +425,41 @@ elif page == "Prediction":
         perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
         importance = dict(zip(features, perm.importances_mean))
 
-    # --- Select Top Important Features ---
+    # Top features
     st.subheader("\U0001F9E0 Predict Sleep Disorder")
-
-    top_n = 10  # number of top features to use for prediction input
+    top_n = 10
     top_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)[:top_n]
     top_feature_names = [f[0] for f in top_features]
 
     st.markdown(f"Showing top **{top_n} important features** based on {model_choice} importance ranking.")
 
-    # --- Dynamic input fields based on top features ---
+    # Input fields
     input_dict = {}
+    used_categorical = set()
+
     for feature in top_feature_names:
         if any(cat in feature for cat in ["Gender", "Occupation", "BMI Category"]):
-            # Categorical
             base_feature = "Gender" if "Gender" in feature else \
                            "Occupation" if "Occupation" in feature else "BMI Category"
-            options = df[base_feature].unique()
-            input_dict[base_feature] = st.selectbox(base_feature, options)
+            if base_feature not in used_categorical:
+                options = df[base_feature].unique()
+                input_dict[base_feature] = st.selectbox(f"{base_feature}", options)
+                used_categorical.add(base_feature)
         else:
-            # Numeric
             col_min, col_max = float(df_pred[feature].min()), float(df_pred[feature].max())
             default = float(df_pred[feature].mean())
             input_dict[feature] = st.slider(f"{feature}", col_min, col_max, default)
 
     input_df = pd.DataFrame([input_dict])
 
-    # --- Predict button ---
+    # Prediction
     if st.button("\u2705 Predict Sleep Disorder"):
-        # Encode and align columns
         input_encoded = pd.get_dummies(input_df, columns=["Gender", "Occupation", "BMI Category"], drop_first=True)
         for col in features:
             if col not in input_encoded.columns:
                 input_encoded[col] = 0
         input_encoded = input_encoded[features]
 
-        # Scale and predict
         input_scaled = scaler.transform(input_encoded)
         prediction_encoded = model.predict(input_scaled)[0]
         prediction = le.inverse_transform([prediction_encoded])[0]
@@ -488,11 +472,7 @@ elif page == "Prediction":
             "Sleep Apnea": "This often relates to breathing interruptions during sleep. Lifestyle changes such as weight management and sleeping on your side can help."
         }
 
-        st.subheader("\U0001F50E Prediction Result") 
+        st.subheader("\U0001F50E Prediction Result")
         st.success(f"Predicted Sleep Disorder: {prediction}")
-
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
-
-        st.subheader("\U0001F4CB Prediction Summary") 
-        st.table(input_df.assign(Predicted_Disorder=prediction))
-
+        st.subheader("\U0001F4CB Prediction Summary")
