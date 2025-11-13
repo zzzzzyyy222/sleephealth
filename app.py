@@ -426,7 +426,7 @@ elif page == "Prediction":
     with st.expander("\U0001F4D8 Classification Report", expanded=False):
         st.dataframe(report_df)
 
-    # Feature importance
+    # Improved feature importance
     importance = None
     if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
         importance = dict(zip(features, model.feature_importances_))
@@ -439,44 +439,32 @@ elif page == "Prediction":
     if importance:
         sorted_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)
         top_n = min(10, len(sorted_features))
-        top_features = [f[0] for f in sorted_features[:top_n]]
+        top_features = sorted_features[:top_n]
     else:
         top_features, top_n = [], 0
 
     st.subheader("\U0001F9E0 Predict Sleep Disorder")
     st.markdown(f"Showing top **{top_n} important features** based on {model_choice} importance ranking.")
 
-    # User Input Section: only for top features
-    input_dict = {}
-    for feature in top_features:
-        if "Gender" in feature:
-            input_dict["Gender"] = st.selectbox("Gender: The gender of the person (Male/Female)", df["Gender"].unique())
-        elif "Occupation" in feature:
-            input_dict["Occupation"] = st.selectbox("Occupation: The occupation or profession of the person", df["Occupation"].unique())
-        elif "BMI Category" in feature:
-            input_dict["BMI Category"] = st.selectbox("BMI Category: The BMI category of the person", df["BMI Category"].unique())
-        elif feature == "Age":
-            input_dict["Age"] = st.slider("Age: The age of the person in years", int(df["Age"].min()), int(df["Age"].max()), int(df["Age"].mean()))
-        elif feature == "Sleep Duration":
-            input_dict["Sleep Duration"] = st.number_input("Sleep Duration (hours): The number of hours the person sleeps per day", float(df["Sleep Duration"].min()), float(df["Sleep Duration"].max()), float(df["Sleep Duration"].mean()))
-        elif feature == "Quality of Sleep":
-            input_dict["Quality of Sleep"] = st.slider("Quality of Sleep (scale 1-10): A subjective rating of sleep quality", 1, 10, 7)
-        elif feature == "Physical Activity Level":
-            input_dict["Physical Activity Level"] = st.number_input("Physical Activity Level (minutes/day): Minutes of physical activity per day", float(df["Physical Activity Level"].min()), float(df["Physical Activity Level"].max()), float(df["Physical Activity Level"].mean()))
-        elif feature == "Stress Level":
-            input_dict["Stress Level"] = st.slider("Stress Level (scale 1-10): A subjective rating of stress", 1, 10, 5)
-        elif feature == "Systolic":
-            input_dict["Systolic"] = st.number_input("Systolic BP: Blood pressure measurement", float(df["Systolic"].min()), float(df["Systolic"].max()), float(df["Systolic"].mean()))
-        elif feature == "Diastolic":
-            input_dict["Diastolic"] = st.number_input("Diastolic BP: Blood pressure measurement", float(df["Diastolic"].min()), float(df["Diastolic"].max()), float(df["Diastolic"].mean()))
-        elif feature == "Heart Rate":
-            input_dict["Heart Rate"] = st.number_input("Heart Rate (bpm): Resting heart rate", float(df["Heart Rate"].min()), float(df["Heart Rate"].max()), float(df["Heart Rate"].mean()))
-        elif feature == "Daily Steps":
-            input_dict["Daily Steps"] = st.number_input("Daily Steps: Number of steps per day", float(df["Daily Steps"].min()), float(df["Daily Steps"].max()), float(df["Daily Steps"].mean()))
+    # User Input Section (clarified labels, no KeyError)
+    st.subheader("Enter your details for prediction")
 
+    input_dict = {
+        "Gender": st.selectbox("Gender: The gender of the person (Male/Female)", ["Male", "Female"]),
+        "Age": st.slider("Age: The age of the person in years", 18, 80, 25),
+        "Occupation": st.selectbox("Occupation: The occupation or profession of the person", ["Software Engineer", "Doctor", "Teacher"]),
+        "Sleep Duration": st.number_input("Sleep Duration (hours): The number of hours the person sleeps per day", 0.0, 12.0, 7.0),
+        "Quality of Sleep": st.slider("Quality of Sleep (scale: 1-10): A subjective rating of the quality of sleep", 1, 10, 7),
+        "Stress Level": st.slider("Stress Level (scale: 1-10): A subjective rating of the stress level", 1, 10, 5),
+        "BMI Category": st.selectbox("BMI Category: The BMI category of the person", ["Normal", "Overweight", "Obese"]),
+        "Heart Rate": st.number_input("Heart Rate (bpm): The resting heart rate of the person", 40, 120, 70),
+        "Systolic": st.number_input("Systolic BP (mmHg): Systolic blood pressure measurement", 90, 180, 120),
+        "Diastolic": st.number_input("Diastolic BP (mmHg): Diastolic blood pressure measurement", 60, 120, 80),
+        "Daily Steps": st.number_input("Daily Steps: The number of steps the person takes per day", 0, 20000, 5000)
+    }
     input_df = pd.DataFrame([input_dict])
 
-    # Encode categorical features
+    # Encode only existing categoricals
     present_categoricals = [col for col in categorical_cols if col in input_df.columns]
     input_encoded = pd.get_dummies(input_df, columns=present_categoricals, drop_first=True)
 
@@ -502,8 +490,4 @@ elif page == "Prediction":
         st.subheader("\U0001F50E Prediction Result")
         st.success(f"Predicted Sleep Disorder: {prediction}")
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
-
-
-    
-       
 
