@@ -354,11 +354,20 @@ elif page == "Prediction":
     features = [col for col in df_encoded.columns if col != "Sleep Disorder"]
     X_full = df_encoded[features].values
 
-    from sklearn.preprocessing import LabelEncoder
+    from sklearn.preprocessing import LabelEncoder, StandardScaler
+    from sklearn.model_selection import train_test_split
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.tree import DecisionTreeClassifier
+    from sklearn.svm import SVC
+    from xgboost import XGBClassifier
+    import numpy as np
+    import pandas as pd
+
     le = LabelEncoder()
     y = le.fit_transform(df_encoded["Sleep Disorder"])
 
-    # Outlier Detection (Z-score) on numeric features only
+    # Outlier Detection (Z-score)
     from scipy.stats import zscore
     numeric_cols = df_encoded.select_dtypes(include=[np.number]).columns.tolist()
     z_scores = np.abs(zscore(df_encoded[numeric_cols]))
@@ -371,59 +380,25 @@ elif page == "Prediction":
     X = scaler.fit_transform(X_full)
 
     # Train-test split
-    from sklearn.model_selection import train_test_split
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     # Class Balancing
     st.subheader("\U0001F4CA Class Balancing (SMOTE option)")
-    balance = st.checkbox("Apply SMOTE Oversampling", value=True, key="smote_checkbox")
-
-    from collections import Counter
-    import plotly.express as px
-
-    # Count before SMOTE
-    y_train_before = y_train.copy()
+    balance = st.checkbox("Apply SMOTE Oversampling", value=True)
 
     if balance:
         from imblearn.over_sampling import SMOTE
         smote = SMOTE(random_state=42)
         X_train, y_train = smote.fit_resample(X_train, y_train)
-        st.info("✅ SMOTE applied!")
-
-        # Visualize class distribution before and after SMOTE
-        y_before_counts = Counter(y_train_before)
-        y_after_counts = Counter(y_train)
-
-        df_balance = pd.DataFrame({
-            "Class": list(le.classes_) * 2,
-            "Count": [y_before_counts.get(i, 0) for i in range(len(le.classes_))] +
-                     [y_after_counts.get(i, 0) for i in range(len(le.classes_))],
-            "Stage": ["Before SMOTE"] * len(le.classes_) + ["After SMOTE"] * len(le.classes_)
-        })
-
-        fig_balance = px.bar(
-            df_balance,
-            x="Class",
-            y="Count",
-            color="Stage",
-            barmode="group",
-            title="Class Distribution Before and After SMOTE",
-            color_discrete_map={"Before SMOTE": "#62C3A5", "After SMOTE": "#F78364"}
-        )
-        fig_balance.update_layout(xaxis_title="Class", yaxis_title="Count", title_x=0.3)
-        st.plotly_chart(fig_balance, use_container_width=True)
-
+        st.info("SMOTE applied!")  
     else:
-        st.info("Oversampling not applied — using imbalanced dataset.")
+        st.info("Oversampling not applied.")  
 
     # Model selection
-    st.subheader("Choose Model")
+    st.subheader("Choose Model") 
     model_choice = st.selectbox(
         "Select Model",
-        ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"],
-        key="model_selection"
+        ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"]
     )
 
     # Initialize Model
@@ -438,16 +413,16 @@ elif page == "Prediction":
     elif model_choice == "XGBoost":
         model = XGBClassifier(use_label_encoder=False, eval_metric='mlogloss')
 
-    # Train and predict
+    # Train model
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
-    # Metrics
+    # Evaluation metrics
     from sklearn.metrics import accuracy_score, classification_report
     report_dict = classification_report(y_test, y_pred, target_names=le.classes_, output_dict=True)
     report_df = pd.DataFrame(report_dict).transpose().round(2)
 
-    st.subheader(f"{model_choice} Evaluation Metrics")
+    st.subheader(f"{model_choice} Evaluation Metrics")  
     st.markdown(f"- **Accuracy:** `{accuracy_score(y_test, y_pred):.2f}`")
     st.markdown(f"- **Classes:** `{', '.join(le.classes_)}`")
 
@@ -465,75 +440,59 @@ elif page == "Prediction":
         perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
         importance = dict(zip(features, perm.importances_mean))
 
-    # --- Prediction Input ---
+    # --- Select Top Important Features ---
     st.subheader("\U0001F9E0 Predict Sleep Disorder")
 
-    # Numeric inputs
-    age = st.slider("Age (years)", int(df["Age"].min()), int(df["Age"].max()), int(df["Age"].mean()))
-    sleep = st.slider("Sleep Duration (hours per day)", 4.0, 10.0, 7.0)
-    quality = st.slider("Quality of Sleep (scale 1–10)", 1, 10, 7)
-    stress = st.slider("Stress Level (scale 1–10)", 1, 10, 5)
-    activity = st.slider("Physical Activity Level (minutes per day)", 0, 300, 30)
-    systolic = st.slider("Systolic Blood Pressure (mmHg)", 90, 180, 120)
-    diastolic = st.slider("Diastolic Blood Pressure (mmHg)", 60, 120, 80)
-    heart_rate = st.slider("Resting Heart Rate (bpm)", 50, 120, 70)
-    steps = st.slider("Daily Steps (count)", 1000, 20000, 8000)
+    top_n = 10  # number of top features to use for prediction input
+    top_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)[:top_n]
+    top_feature_names = [f[0] for f in top_features]
 
-    # Categorical inputs
-    gender = st.selectbox("Gender", df["Gender"].unique())
-    occupation = st.selectbox("Occupation", df["Occupation"].unique())
-    bmi = st.selectbox("BMI Category", df["BMI Category"].unique())
+    st.markdown(f"Showing top **{top_n} important features** based on {model_choice} importance ranking.")
 
-    # Build input dataframe
-    input_dict = {
-        "Age": age,
-        "Sleep Duration": sleep,
-        "Quality of Sleep": quality,
-        "Stress Level": stress,
-        "Physical Activity Level": activity,
-        "Systolic": systolic,
-        "Diastolic": diastolic,
-        "Heart Rate": heart_rate,
-        "Daily Steps": steps,
-        "Gender": gender,
-        "Occupation": occupation,
-        "BMI Category": bmi
-    }
+    # --- Dynamic input fields based on top features ---
+    input_dict = {}
+    for feature in top_feature_names:
+        if any(cat in feature for cat in ["Gender", "Occupation", "BMI Category"]):
+            # Categorical
+            base_feature = "Gender" if "Gender" in feature else \
+                           "Occupation" if "Occupation" in feature else "BMI Category"
+            options = df[base_feature].unique()
+            input_dict[base_feature] = st.selectbox(base_feature, options)
+        else:
+            # Numeric
+            col_min, col_max = float(df_pred[feature].min()), float(df_pred[feature].max())
+            default = float(df_pred[feature].mean())
+            input_dict[feature] = st.slider(f"{feature}", col_min, col_max, default)
+
     input_df = pd.DataFrame([input_dict])
 
-    # Predict only when button is clicked
+    # --- Predict button ---
     if st.button("\u2705 Predict Sleep Disorder"):
-        # Apply same preprocessing (get_dummies for categoricals)
-        input_encoded = pd.get_dummies(input_df, columns=["Gender","Occupation","BMI Category"], drop_first=True)
-
-        # Align with training features
+        # Encode and align columns
+        input_encoded = pd.get_dummies(input_df, columns=["Gender", "Occupation", "BMI Category"], drop_first=True)
         for col in features:
             if col not in input_encoded.columns:
                 input_encoded[col] = 0
         input_encoded = input_encoded[features]
 
-        # Scale
+        # Scale and predict
         input_scaled = scaler.transform(input_encoded)
-
-        # Predict
         prediction_encoded = model.predict(input_scaled)[0]
         prediction = le.inverse_transform([prediction_encoded])[0]
         if prediction == "None":
             prediction = "Normal Sleep"
 
-        # Advice mapping
         advice_map = {
             "Normal Sleep": "Your sleep pattern looks healthy. Keep maintaining good habits like regular exercise and consistent bedtimes.",
-            "Insomnia": "You may be experiencing insomnia. Try to improve sleep hygiene, reduce screen time before bed, keep a consistent schedule, and consider relaxation techniques.",
-            "Sleep Apnea": "This often relates to breathing interruptions during sleep. Focus on lifestyle changes like losing weight, exercising, and avoiding alcohol or smoking. It’s best to consult a healthcare professional for proper evaluation."
+            "Insomnia": "You may be experiencing insomnia. Try to improve sleep hygiene, reduce screen time before bed, and manage stress levels.",
+            "Sleep Apnea": "This often relates to breathing interruptions during sleep. Lifestyle changes such as weight management and sleeping on your side can help."
         }
 
-        # Display result and advice
-        st.subheader("\U0001F50E Prediction Result")
+        st.subheader("\U0001F50E Prediction Result") 
         st.success(f"Predicted Sleep Disorder: {prediction}")
 
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
 
-        st.subheader("\U0001F4CB Prediction Summary")
+        st.subheader("\U0001F4CB Prediction Summary") 
         st.table(input_df.assign(Predicted_Disorder=prediction))
 
