@@ -486,66 +486,78 @@ elif page == "Prediction":
         st.plotly_chart(fig_imp, use_container_width=True)
         st.dataframe(imp_df.set_index("Feature"))
     else:
-        st.info("Feature importance not available for this model.")
+        st.info(f"Feature importance is not available for {model_choice}.")
 
-# --- Prediction Input ---
-st.subheader("🧠 Predict Sleep Disorder")
+    # --- Prediction Input ---
+    st.subheader("🧠 Predict Sleep Disorder")
 
-# Numeric inputs
-age = st.slider("Age (years)", int(df["Age"].min()), int(df["Age"].max()), int(df["Age"].mean()))
-sleep = st.slider("Sleep Duration (hours)", 4.0, 10.0, 7.0)
-quality = st.slider("Quality of Sleep (1-10)", 1, 10, 7)
-stress = st.slider("Stress Level (1-10)", 1, 10, 5)
-activity = st.slider("Physical Activity Level (minutes/day)", 0, 300, 30)
-systolic = st.slider("Systolic BP", 90, 180, 120)
-diastolic = st.slider("Diastolic BP", 60, 120, 80)
-heart_rate = st.slider("Heart Rate (bpm)", 50, 120, 70)
-steps = st.slider("Daily Steps", 1000, 20000, 8000)
+    # Numeric inputs with units
+    age = st.slider("Age (years)", int(df["Age"].min()), int(df["Age"].max()), int(df["Age"].mean()))
+    sleep = st.slider("Sleep Duration (hours per day)", 4.0, 10.0, 7.0)
+    quality = st.slider("Quality of Sleep (scale 1–10)", 1, 10, 7)
+    stress = st.slider("Stress Level (scale 1–10)", 1, 10, 5)
+    activity = st.slider("Physical Activity Level (minutes per day)", 0, 300, 30)
+    systolic = st.slider("Systolic Blood Pressure (mmHg)", 90, 180, 120)
+    diastolic = st.slider("Diastolic Blood Pressure (mmHg)", 60, 120, 80)
+    heart_rate = st.slider("Resting Heart Rate (bpm)", 50, 120, 70)
+    steps = st.slider("Daily Steps (count)", 1000, 20000, 8000)
 
-# Categorical inputs
-gender = st.selectbox("Gender", df["Gender"].unique())
-occupation = st.selectbox("Occupation", df["Occupation"].unique())
-bmi = st.selectbox("BMI Category", df["BMI Category"].unique())
+    # Categorical inputs
+    gender = st.selectbox("Gender", df["Gender"].unique())
+    occupation = st.selectbox("Occupation", df["Occupation"].unique())
+    bmi = st.selectbox("BMI Category", df["BMI Category"].unique())
 
-# Build input dataframe
-input_dict = {
-    "Age": age,
-    "Sleep Duration": sleep,
-    "Quality of Sleep": quality,
-    "Stress Level": stress,
-    "Physical Activity Level": activity,
-    "Systolic": systolic,
-    "Diastolic": diastolic,
-    "Heart Rate": heart_rate,
-    "Daily Steps": steps,
-    "Gender": gender,
-    "Occupation": occupation,
-    "BMI Category": bmi
-}
-input_df = pd.DataFrame([input_dict])
+    # Build input dataframe
+    input_dict = {
+        "Age": age,
+        "Sleep Duration": sleep,
+        "Quality of Sleep": quality,
+        "Stress Level": stress,
+        "Physical Activity Level": activity,
+        "Systolic": systolic,
+        "Diastolic": diastolic,
+        "Heart Rate": heart_rate,
+        "Daily Steps": steps,
+        "Gender": gender,
+        "Occupation": occupation,
+        "BMI Category": bmi
+    }
+    input_df = pd.DataFrame([input_dict])
 
-# Apply same preprocessing (get_dummies for categoricals)
-input_encoded = pd.get_dummies(input_df, columns=["Gender","Occupation","BMI Category"], drop_first=True)
+    # Predict only when button is clicked
+    if st.button("✅ Predict Sleep Disorder"):
+        # Apply same preprocessing (get_dummies for categoricals)
+        input_encoded = pd.get_dummies(input_df, columns=["Gender","Occupation","BMI Category"], drop_first=True)
 
-# Align with training features (add missing columns if needed)
-for col in features:
-    if col not in input_encoded.columns:
-        input_encoded[col] = 0
-input_encoded = input_encoded[features]
+        # Align with training features
+        for col in features:
+            if col not in input_encoded.columns:
+                input_encoded[col] = 0
+        input_encoded = input_encoded[features]
 
-# Scale
-input_scaled = scaler.transform(input_encoded)
+        # Scale
+        input_scaled = scaler.transform(input_encoded)
 
-# Predict
-prediction_encoded = model.predict(input_scaled)[0]
-prediction = le.inverse_transform([prediction_encoded])[0]
-if prediction == "None":
-    prediction = "Normal Sleep"
+        # Predict
+        prediction_encoded = model.predict(input_scaled)[0]
+        prediction = le.inverse_transform([prediction_encoded])[0]
+        if prediction == "None":
+            prediction = "Normal Sleep"
 
-st.subheader("🔎 Prediction Result") 
-st.success(f"Predicted Sleep Disorder: {prediction}")
+        # Advice mapping
+        advice_map = {
+            "Normal Sleep": "Your sleep pattern looks healthy. Keep maintaining good habits like regular exercise and consistent bedtimes.",
+            "Insomnia": "You may be experiencing insomnia. Try to improve sleep hygiene — reduce screen time before bed, keep a consistent schedule, and consider relaxation techniques.",
+            "Sleep Apnea": "Signs point to sleep apnea. This often relates to breathing interruptions during sleep. It’s best to consult a healthcare professional for proper evaluation."
+        }
 
-st.subheader("📋 Prediction Summary") 
-st.table(input_df.assign(Predicted_Disorder=prediction))
+        # Display result + advice
+        st.subheader("🔎 Prediction Result") 
+        st.success(f"Predicted Sleep Disorder: {prediction}")
+
+        st.markdown(f"💡 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
+
+        st.subheader("📋 Prediction Summary") 
+        st.table(input_df.assign(Predicted_Disorder=prediction))
 
 
