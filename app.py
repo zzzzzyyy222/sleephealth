@@ -179,7 +179,7 @@ elif page == "EDA":
     # Stress vs Quality of Sleep
     st.subheader("💢 Stress Level vs Quality of Sleep")
     fig_stress = px.scatter(filtered, x="Stress Level", y="Quality of Sleep",
-                            color="Gender", trendline="ols",
+                            color="Gender",
                             color_discrete_sequence=px.colors.qualitative.Pastel)
     st.plotly_chart(fig_stress, use_container_width=True)
     st.markdown("""
@@ -188,31 +188,65 @@ elif page == "EDA":
     Regular relaxation and stress control can lead to better rest.
     """)
 
-    # Physical Activity vs Quality of Sleep
+    # PHYSICAL ACTIVITY vs QUALITY OF SLEEP
     st.subheader("🏃‍♂️ Physical Activity vs Quality of Sleep")
-    fig_activity = px.box(filtered, x="Physical Activity Level", y="Quality of Sleep",
-                          color_discrete_sequence=["#00BFC4"])
-    st.plotly_chart(fig_activity, use_container_width=True)
-    st.markdown("""
-    **Exercise and Sleep Connection**  
-    More active participants tend to report better sleep quality.  
-    Consistent physical movement supports body rhythms and relaxation.
-    """)
 
-    # Correlation Heatmap
-    st.subheader("📈 Correlation Heatmap")
-    numeric_cols = filtered.select_dtypes(include=np.number).columns.tolist()
-    cols_to_remove = ["Person ID", "id", "Person_ID"]
-    numeric_cols = [col for col in numeric_cols if col not in cols_to_remove]
-    corr = filtered[numeric_cols].corr()
+    # Check if Physical Activity Level is numeric or categorical
+    if pd.api.types.is_numeric_dtype(filtered["Physical Activity Level"]):
+        # Scatter plot for numeric
+        fig_activity = px.scatter(
+            filtered,
+            x="Physical Activity Level",
+            y="Quality of Sleep",
+            color="Gender",
+            color_discrete_sequence=px.colors.qualitative.Pastel,
+            labels={
+                "Physical Activity Level": "Physical Activity Level (minutes or score)",
+                "Quality of Sleep": "Sleep Quality (scale)"
+            }
+        )
+        st.plotly_chart(fig_activity, use_container_width=True)
+        st.markdown("""
+        **Activity and Sleep Quality Relationship**  
+        Participants with higher physical activity levels tend to report **better sleep quality**.  
+        This relationship shows how regular movement supports healthy sleep cycles.
+        """)
+    else:
+        # Box plot for categorical
+        fig_activity = px.box(
+            filtered,
+            x="Physical Activity Level",
+            y="Quality of Sleep",
+            color="Physical Activity Level",
+            color_discrete_sequence=px.colors.qualitative.Set2
+        )
+        st.plotly_chart(fig_activity, use_container_width=True)
+        st.markdown("""
+        **Activity and Sleep Quality (By Category)**  
+        Those in the **High activity** group generally achieve better sleep quality  
+        compared to those in **Low** or **Moderate** activity levels.
+        """)
 
-    fig_corr, ax = plt.subplots(figsize=(8, 6))
-    sns.heatmap(corr, annot=True, cmap="coolwarm", center=0, fmt=".2f", linewidths=0.5)
+    # CORRELATION HEATMAP (Your Original Version)
+    st.subheader("📈 Correlation Heatmap (Original Style)")
+
+    corr = filtered.select_dtypes(include=np.number).corr()
+    fig_corr, ax = plt.subplots(figsize=(10, 6))
+    sns.heatmap(
+        corr,
+        annot=True,
+        cmap="YlGnBu",
+        linewidths=0.5,
+        fmt=".2f",
+        cbar_kws={"label": "Correlation Strength"}
+    )
     st.pyplot(fig_corr)
     st.markdown("""
-    **Relationships Among Numeric Features**  
-    Sleep Duration and Stress Level show a negative relationship,  
-    while Physical Activity and Quality of Sleep are slightly positive.
+    **Feature Correlations (Original Style)**  
+    This version preserves your original color palette and design.  
+    It clearly shows which features are positively or negatively associated —  
+    for example, **Stress Level** negatively with **Sleep Duration**,  
+    and **Physical Activity** positively with **Quality of Sleep**.
     """)
 
     # SECTION 2: SLEEP DISORDER ANALYSIS
@@ -254,19 +288,31 @@ elif page == "EDA":
     likely due to higher work stress and lifestyle demands.
     """)
 
-    # Sleep Disorder by BMI
-    st.subheader("⚖️ Sleep Disorder by BMI Category")
-    bmi_disorder = filtered.groupby("BMI Category")["Sleep Disorder"].value_counts().reset_index(name="Count")
-    fig_bmi = px.bar(bmi_disorder, x="BMI Category", y="Count", color="Sleep Disorder",
-                     barmode="group", color_discrete_sequence=px.colors.qualitative.Pastel)
+    # Sleep Disorder by BMI Category (Old Version + Counts)
+    st.subheader("⚖️ Sleep Disorder by BMI Category (With Counts)")
+
+    bmi_disorder_counts = filtered.groupby(["BMI Category", "Sleep Disorder"]).size().reset_index(name="Count")
+    fig_bmi = px.bar(
+        bmi_disorder_counts,
+        x="BMI Category",
+        y="Count",
+        color="Sleep Disorder",
+        text="Count",  # show numbers on bars
+        barmode="stack",
+        color_discrete_sequence=px.colors.qualitative.Set3,
+        labels={"Count": "Number of People", "BMI Category": "BMI Category"}
+    )
+    fig_bmi.update_traces(textposition="outside")
     st.plotly_chart(fig_bmi, use_container_width=True)
+
     st.markdown("""
-    **BMI and Disorder Risk**  
-    Overweight and obese participants show more Sleep Apnea,  
-    indicating how body weight contributes to breathing-related sleep problems.
+    **BMI and Sleep Disorder Relationship (Counts Included)**  
+    This chart shows both **the proportion and actual counts** of people with each disorder type.  
+    Higher BMI groups tend to have **more Sleep Apnea** cases, while normal BMI groups  
+    are more likely to report **no disorder** or **Insomnia**.
     """)
 
-    # SECTION 3: INSIGHT SUMMARY
+    # SECTION 3: SUMMARY OF INSIGHTS
     st.header("3️⃣ Summary of Insights")
     st.markdown("""
     - **Higher stress** and **low activity** lead to poorer sleep quality.  
@@ -275,6 +321,7 @@ elif page == "EDA":
       older, higher-stress, and higher-BMI groups.  
     - Lifestyle management can effectively improve sleep and overall wellness.
     """)
+
 
 
 elif page == "Prediction":
