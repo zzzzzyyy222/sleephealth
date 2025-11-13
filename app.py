@@ -364,7 +364,6 @@ From this visualization, it’s clear that:
 Overall, the treemap effectively illustrates **gender-based differences** while preserving an easy-to-understand hierarchy of sleep health categories.
 """)
 
-
 elif page == "Prediction":
     st.title("🔮 Sleep Disorder Prediction")
 
@@ -446,6 +445,7 @@ elif page == "Prediction":
     y_pred = model.predict(X_test)
 
     # Metrics
+    from sklearn.metrics import accuracy_score, classification_report
     report_dict = classification_report(y_test, y_pred, target_names=le.classes_, output_dict=True)
     report_df = pd.DataFrame(report_dict).transpose().round(2)
 
@@ -456,16 +456,17 @@ elif page == "Prediction":
     with st.expander("📘 Classification Report", expanded=False):
         st.dataframe(report_df)
 
-  # --- Feature Importance (calculated but not displayed) ---
-importance = None
-if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
-    importance = dict(zip(features, model.feature_importances_))
-elif model_choice == "Logistic Regression":
-    importance = dict(zip(features, abs(model.coef_[0])))
-elif model_choice == "SVM":
-    from sklearn.inspection import permutation_importance
-    perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
-    importance = dict(zip(features, perm.importances_mean))
+    # --- Feature Importance (calculated but not displayed) ---
+    importance = None
+    if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
+        importance = dict(zip(features, model.feature_importances_))
+    elif model_choice == "Logistic Regression":
+        importance = dict(zip(features, abs(model.coef_[0])))
+    elif model_choice == "SVM":
+        from sklearn.inspection import permutation_importance
+        perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
+        importance = dict(zip(features, perm.importances_mean))
+    # (kept in memory for reporting, not shown in dashboard)
 
     # --- Prediction Input ---
     st.subheader("🧠 Predict Sleep Disorder")
@@ -538,5 +539,6 @@ elif model_choice == "SVM":
 
         st.subheader("📋 Prediction Summary") 
         st.table(input_df.assign(Predicted_Disorder=prediction))
+
 
 
