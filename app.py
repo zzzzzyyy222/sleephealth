@@ -366,73 +366,65 @@ Overall, the treemap effectively illustrates **gender-based differences** while 
 
 
 elif page == "Prediction":
-    st.title("\U0001F52E Sleep Disorder Prediction") 
+    st.title("🔮 Sleep Disorder Prediction")
 
-    # Include "None" as Normal Sleep
+    # Prepare dataset
     df_pred = df.copy()
     df_pred["Sleep Disorder"] = df_pred["Sleep Disorder"].fillna("None")
+    df_pred = df_pred.drop(columns=["Person ID"])  # drop identifier
 
-    features = ["Sleep Duration", "Quality of Sleep", "Stress Level", "Physical Activity Level"]
-    df_model = df_pred[features + ["Sleep Disorder"]].dropna()
+    # Split blood pressure into systolic/diastolic if needed
+    if "Blood Pressure" in df_pred.columns:
+        bp_split = df_pred["Blood Pressure"].str.split("/", expand=True).astype(float)
+        df_pred["Systolic"] = bp_split[0]
+        df_pred["Diastolic"] = bp_split[1]
+        df_pred = df_pred.drop(columns=["Blood Pressure"])
 
-    # Outlier Detection (Z-score)
-    from scipy.stats import zscore
-    z_scores = np.abs(zscore(df_model[features]))
-    df_model = df_model[(z_scores < 3).all(axis=1)]
+    # Separate categorical and numeric columns
+    categorical_cols = ["Gender", "Occupation", "BMI Category"]
+    numeric_cols = df_pred.drop(columns=["Sleep Disorder"] + categorical_cols).select_dtypes(include=[np.number]).columns.tolist()
+
+    # Encode categorical features
+    from sklearn.preprocessing import OneHotEncoder
+    encoder = OneHotEncoder(sparse=False, drop="first")
+    encoded = encoder.fit_transform(df_pred[categorical_cols])
+    encoded_cols = encoder.get_feature_names_out(categorical_cols)
+
+    # Build final dataset
+    X_full = np.hstack([df_pred[numeric_cols].values, encoded])
+    features = numeric_cols + list(encoded_cols)
 
     # Encode target labels
     from sklearn.preprocessing import LabelEncoder
     le = LabelEncoder()
-    y = le.fit_transform(df_model["Sleep Disorder"])
+    y = le.fit_transform(df_pred["Sleep Disorder"])
+
+    # Outlier Detection (Z-score) on numeric part only
+    from scipy.stats import zscore
+    z_scores = np.abs(zscore(df_pred[numeric_cols]))
+    mask = (z_scores < 3).all(axis=1)
+    X_full = X_full[mask]
+    y = y[mask]
 
     # Feature Scaling
     scaler = StandardScaler()
-    X = scaler.fit_transform(df_model[features])
+    X = scaler.fit_transform(X_full)
 
     # Train-test split
+    from sklearn.model_selection import train_test_split
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
 
     # Class Balancing
-    st.subheader("\u2696\uFE0F Class Balancing (SMOTE option)")
+    st.subheader("⚖️ Class Balancing (SMOTE option)")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True, key="smote_checkbox")
 
     if balance:
-        # Before SMOTE distribution
-        before_counts = pd.Series(y_train).value_counts().sort_index()
-        before_df = pd.DataFrame({
-            "Class": le.inverse_transform(before_counts.index),
-            "Count": before_counts.values,
-            "Stage": "Before SMOTE"
-        })
-
-        # Apply SMOTE
         from imblearn.over_sampling import SMOTE
         smote = SMOTE(random_state=42)
         X_train, y_train = smote.fit_resample(X_train, y_train)
         st.info("SMOTE applied!")  
-
-        # After SMOTE distribution
-        after_counts = pd.Series(y_train).value_counts().sort_index()
-        after_df = pd.DataFrame({
-            "Class": le.inverse_transform(after_counts.index),
-            "Count": after_counts.values,
-            "Stage": "After SMOTE"
-        })
-
-        # Combine and visualize
-        dist_df = pd.concat([before_df, after_df])
-        fig_bal = px.bar(
-            dist_df,
-            x="Class",
-            y="Count",
-            color="Stage",
-            barmode="group",
-            color_discrete_sequence=px.colors.qualitative.Set2,
-            title="Class Distribution Before and After SMOTE"
-        )
-        st.plotly_chart(fig_bal, use_container_width=True)
     else:
         st.info("Oversampling not applied.")  
 
@@ -465,97 +457,43 @@ elif page == "Prediction":
     report_dict = classification_report(y_test, y_pred, target_names=le.classes_, output_dict=True)
     report_df = pd.DataFrame(report_dict).transpose().round(2)
 
-    st.subheader("\U0001F4CA " + f"{model_choice} Evaluation Metrics")  
+    st.subheader("📊 " + f"{model_choice} Evaluation Metrics")  
     st.markdown(f"- **Accuracy:** `{accuracy_score(y_test, y_pred):.2f}`")
     st.markdown(f"- **Classes:** `{', '.join(le.classes_)}`")
 
-    with st.expander("\U0001F4D8 Classification Report", expanded=False):
+    with st.expander("📘 Classification Report", expanded=False):
         st.dataframe(report_df)
 
-st.subheader("🔍 Feature Importance")
-  # Include "None" as Normal Sleep
-    df_pred = df.copy()
-    df_pred["Sleep Disorder"] = df_pred["Sleep Disorder"].fillna("None")
-    df_pred = df_pred.drop(columns=["Person ID"])  # drop identifier
+    # --- Feature Importance ---
+    st.subheader("🔍 Feature Importance")
 
-    # --- Expanded preprocessing ---
-    # Split blood pressure into systolic/diastolic if needed
-    if "Blood Pressure" in df_pred.columns:
-        bp_split = df_pred["Blood Pressure"].str.split("/", expand=True).astype(float)
-        df_pred["Systolic"] = bp_split[0]
-        df_pred["Diastolic"] = bp_split[1]
-        df_pred = df_pred.drop(columns=["Blood Pressure"])
+    importance = None
+    if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
+        importance = dict(zip(features, model.feature_importances_))
+    elif model_choice == "Logistic Regression":
+        importance = dict(zip(features, abs(model.coef_[0])))
+    elif model_choice == "SVM":
+        from sklearn.inspection import permutation_importance
+        perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
+        importance = dict(zip(features, perm.importances_mean))
 
-    categorical_cols = ["Gender", "Occupation", "BMI Category"]
-    numeric_cols = df_pred.drop(columns=["Sleep Disorder"] + categorical_cols).select_dtypes(include=[np.number]).columns.tolist()
+    if importance is not None:
+        imp_df = pd.DataFrame({
+            "Feature": list(importance.keys()),
+            "Importance": list(importance.values())
+        }).sort_values(by="Importance", ascending=False)
 
-    from sklearn.preprocessing import OneHotEncoder
-    encoder = OneHotEncoder(sparse=False, drop="first")
-    encoded = encoder.fit_transform(df_pred[categorical_cols])
-    encoded_cols = encoder.get_feature_names_out(categorical_cols)
+        fig_imp = px.bar(
+            imp_df,
+            x="Feature",
+            y="Importance",
+            title=f"{model_choice} Feature Importance",
+            color="Importance",
+            color_continuous_scale="Blues"
+        )
+        st.plotly_chart(fig_imp, use_container_width=True)
+        st.dataframe(imp_df.set_index("Feature"))
+    else:
+        st.info("Feature importance not available for this model.")
 
-    # Build final dataset
-    X_full = np.hstack([df_pred[numeric_cols].values, encoded])
-    features = numeric_cols + list(encoded_cols)
-
-    # Encode target
-    from sklearn.preprocessing import LabelEncoder
-    le = LabelEncoder()
-    y = le.fit_transform(df_pred["Sleep Disorder"])
-importance = None
-
-if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
-    # Tree-based models expose native feature_importances_
-    importance = dict(zip(features, model.feature_importances_))
-
-elif model_choice == "Logistic Regression":
-    # Coefficients reflect linear weights (scaled features)
-    importance = dict(zip(features, abs(model.coef_[0])))
-
-elif model_choice == "SVM":
-    # Use permutation importance since SVM has no native importance
-    from sklearn.inspection import permutation_importance
-    perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
-    importance = dict(zip(features, perm.importances_mean))
-
-# --- Visualize importance if available ---
-if importance is not None:
-    imp_df = pd.DataFrame({
-        "Feature": list(importance.keys()),
-        "Importance": list(importance.values())
-    }).sort_values(by="Importance", ascending=False)
-
-    fig_imp = px.bar(
-        imp_df,
-        x="Feature",
-        y="Importance",
-        title=f"{model_choice} Feature Importance",
-        color="Importance",
-        color_continuous_scale="Blues"
-    )
-    st.plotly_chart(fig_imp, use_container_width=True)
-
-    st.dataframe(imp_df.set_index("Feature"))
-else:
-    st.info("Feature importance not available for this model.")
-    # Prediction Input
-    st.subheader("\U0001F9E0 Predict Sleep Disorder")  # 
-    sleep = st.slider("Sleep Duration (hours)", 4.0, 10.0, 7.0)
-    quality = st.slider("Quality of Sleep", 1, 10, 7)
-    stress = st.slider("Stress Level", 1, 10, 5)
-    activity = st.slider("Physical Activity Level", 0, 100, 50)
-
-    input_df = pd.DataFrame([[sleep, quality, stress, activity]], columns=features)
-    input_scaled = scaler.transform(input_df)
-
-    prediction_encoded = model.predict(input_scaled)[0]
-    prediction = le.inverse_transform([prediction_encoded])[0]
-    if prediction == "None":
-        prediction = "Normal Sleep"
-
-    st.subheader("\U0001F50D Prediction Result") 
-    st.success(f"Predicted Sleep Disorder: {prediction}")
-
-    st.subheader("\U0001F4CB Prediction Summary") 
-    st.table(input_df.assign(Predicted_Disorder=prediction))
 
