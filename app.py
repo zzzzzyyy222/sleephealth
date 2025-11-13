@@ -178,6 +178,11 @@ elif page == "EDA":
         color_discrete_sequence=px.colors.qualitative.Pastel
     )
     st.plotly_chart(fig_occ, use_container_width=True)
+    st.markdown("""
+    Sleep duration varies across occupations. High-demand jobs often lead to shorter and more variable sleep, 
+    while creative or academic roles tend to have longer, more consistent sleep.  
+    The boxplot also shows outliers, reflecting individual lifestyle differences within the same occupation.
+    """)
 
     # --- Distribution of Sleep Quality (Bar Chart) ---
     st.subheader("💤 Distribution of Sleep Quality")
@@ -193,6 +198,11 @@ elif page == "EDA":
     )
     fig_quality.update_layout(xaxis_title="Quality of Sleep (1-10)", yaxis_title="Count")
     st.plotly_chart(fig_quality, use_container_width=True)
+    st.markdown("""
+    Most participants report moderate sleep quality (around 5–7).  
+    There are minimal gender differences, although males show slightly wider variation.  
+    Very few participants achieve optimal sleep, highlighting the importance of promoting consistent sleep routines and stress reduction.
+    """)
 
     # --- Stress vs Sleep Quality (Average Trend) ---
     st.subheader("💢 Stress Level vs Average Sleep Quality")
@@ -206,6 +216,11 @@ elif page == "EDA":
     )
     fig_stress.update_layout(yaxis_title="Average Sleep Quality (1-10)")
     st.plotly_chart(fig_stress, use_container_width=True)
+    st.markdown("""
+    Higher stress levels are associated with lower average sleep quality.  
+    This trend underscores the impact of mental well-being on sleep.  
+    Interventions focusing on stress management could therefore improve overall sleep health.
+    """)
 
     # -----------------------------
     # SECTION 2: LIFESTYLE & ACTIVITY
@@ -219,12 +234,17 @@ elif page == "EDA":
         x="Physical Activity Level",
         y="Quality of Sleep",
         color="Gender",
-        trendline="ols",  # shows linear regression
+        trendline="ols",
         color_discrete_sequence=px.colors.qualitative.Pastel,
         title="Physical Activity Level vs Quality of Sleep"
     )
     fig_activity_sleep.update_layout(yaxis_title="Quality of Sleep (1-10)")
     st.plotly_chart(fig_activity_sleep, use_container_width=True)
+    st.markdown("""
+    Participants with higher physical activity levels tend to report better sleep quality.  
+    The positive trendline indicates a clear linear relationship.  
+    Regular exercise may improve sleep efficiency, deep sleep stages, and overall restfulness.
+    """)
 
     # -----------------------------
     # SECTION 3: CORRELATION
@@ -249,6 +269,11 @@ elif page == "EDA":
     )
     ax.set_title("Correlation Matrix")
     st.pyplot(fig_heat)
+    st.markdown("""
+    The heatmap shows relationships among numeric variables.  
+    Stress level negatively correlates with sleep duration, while physical activity positively correlates with sleep quality.  
+    Such correlations help identify important predictors for sleep health and potential targets for interventions.
+    """)
 
     # -----------------------------
     # SECTION 4: SLEEP DISORDER ANALYSIS
@@ -268,6 +293,11 @@ elif page == "EDA":
     )
     fig_disorder.update_traces(textinfo="percent+label")
     st.plotly_chart(fig_disorder, use_container_width=True)
+    st.markdown("""
+    Insomnia is the most prevalent disorder, followed by sleep apnea.  
+    The pie chart emphasizes the relative proportion of each disorder.  
+    Understanding prevalence helps target awareness campaigns and preventive measures.
+    """)
 
     # Sleep Disorder by Age (stacked % histogram)
     st.subheader("👶🧓 Sleep Disorders by Age Group")
@@ -280,6 +310,11 @@ elif page == "EDA":
         color_discrete_sequence=px.colors.qualitative.Set1
     )
     st.plotly_chart(fig_age, use_container_width=True)
+    st.markdown("""
+    Sleep disorders are more common among middle-aged and older adults.  
+    Younger participants show lower prevalence, likely due to faster recovery and more flexible routines.  
+    Age-targeted education and stress management programs may help reduce disorder incidence.
+    """)
 
     # Sleep Disorder by BMI Category 
     st.subheader("⚖️ Sleep Disorder by BMI Category")
@@ -296,6 +331,12 @@ elif page == "EDA":
                                 hovertemplate="%{label}: %{value} (%{percent})")
     fig_bmi_donut.update_layout(margin=dict(t=30, b=0, l=0, r=0))
     st.plotly_chart(fig_bmi_donut, use_container_width=True)
+    st.markdown("""
+    Sleep disorders are slightly more frequent among overweight and obese participants.  
+    The donut chart shows both counts and percentages for clarity.  
+    Maintaining a healthy BMI may reduce the risk of sleep-related issues and improve overall rest quality.
+    """)
+
 
    
 elif page == "Prediction":
