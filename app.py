@@ -337,7 +337,9 @@ elif page == "EDA":
 elif page == "Prediction":
     st.title("\U0001F52E Sleep Disorder Prediction")
 
+    # -------------------
     # Prepare dataset
+    # -------------------
     df_pred = df.copy()
     df_pred["Sleep Disorder"] = df_pred["Sleep Disorder"].fillna("None")
     df_pred = df_pred.drop(columns=["Person ID"])
@@ -349,17 +351,21 @@ elif page == "Prediction":
         df_pred["Diastolic"] = bp_split[1]
         df_pred = df_pred.drop(columns=["Blood Pressure"])
 
-    categorical_cols = ["Gender", "BMI Category"]  # Removed Occupation
+    # Categorical columns (no occupation)
+    categorical_cols = ["Gender", "BMI Category"]
     df_encoded = pd.get_dummies(df_pred, columns=categorical_cols, drop_first=True)
 
-    features = [col for col in df_encoded.columns if col != "Sleep Disorder"]
-    X_full = df_encoded[features].values
+    # Fill numeric NaNs before scaling
+    numeric_cols = df_encoded.select_dtypes(include=[np.number]).columns.tolist()
+    df_encoded[numeric_cols] = df_encoded[numeric_cols].fillna(df_encoded[numeric_cols].mean())
 
+    # Features and target
+    features = [col for col in df_encoded.columns if col != "Sleep Disorder"]
+    X_full = df_encoded[features].values.astype(float)
     le = LabelEncoder()
     y = le.fit_transform(df_encoded["Sleep Disorder"])
 
     # Remove outliers
-    numeric_cols = df_encoded.select_dtypes(include=[np.number]).columns.tolist()
     z_scores = np.abs(zscore(df_encoded[numeric_cols]))
     mask = (z_scores < 3).all(axis=1)
     X_full = X_full[mask]
@@ -369,18 +375,12 @@ elif page == "Prediction":
     scaler = StandardScaler()
     X = scaler.fit_transform(X_full)
 
-    # Ensure numeric columns have no missing values
-    numeric_cols = df_encoded.select_dtypes(include=[np.number]).columns.tolist()
-    df_encoded[numeric_cols] = df_encoded[numeric_cols].fillna(df_encoded[numeric_cols].mean())
-
-    # Prepare X_full for scaler
-    X_full = df_encoded[features].values
-    X_full = X_full.astype(float)
-
     # Train-test split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
+    # -------------------
     # SMOTE
+    # -------------------
     st.subheader("\U0001F4CA Class Balancing (SMOTE option)")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True)
 
@@ -392,7 +392,6 @@ elif page == "Prediction":
     else:
         st.info("Oversampling not applied.")
 
-    # SMOTE visualization
     if balance:
         y_after_counts = Counter(y_train)
         df_balance = pd.DataFrame({
@@ -411,11 +410,12 @@ elif page == "Prediction":
         fig_balance.update_layout(xaxis_title="Class", yaxis_title="Count", title_x=0.3)
         st.plotly_chart(fig_balance, use_container_width=True)
 
+    # -------------------
     # Model selection
+    # -------------------
     st.subheader("Choose Model")
     model_choice = st.selectbox("Select Model", ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"])
 
-    # Initialize model
     if model_choice == "Random Forest":
         model = RandomForestClassifier(class_weight='balanced' if not balance else None)
     elif model_choice == "Logistic Regression":
@@ -427,11 +427,15 @@ elif page == "Prediction":
     elif model_choice == "XGBoost":
         model = XGBClassifier(use_label_encoder=False, eval_metric='mlogloss')
 
+    # -------------------
     # Train model
+    # -------------------
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
+    # -------------------
     # Evaluation metrics
+    # -------------------
     report_dict = classification_report(y_test, y_pred, target_names=le.classes_, output_dict=True)
     report_df = pd.DataFrame(report_dict).transpose().round(2)
 
@@ -442,7 +446,9 @@ elif page == "Prediction":
     with st.expander("\U0001F4D8 Classification Report", expanded=False):
         st.dataframe(report_df)
 
+    # -------------------
     # Feature importance
+    # -------------------
     importance = None
     if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
         importance = dict(zip(features, model.feature_importances_))
@@ -452,13 +458,11 @@ elif page == "Prediction":
         perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
         importance = dict(zip(features, perm.importances_mean))
 
-    # Sort all features by importance
     if importance:
         sorted_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)
         feature_names_plot = [f[0] for f in sorted_features]
         feature_values_plot = [f[1] for f in sorted_features]
 
-        # Visualize all features
         fig_features = px.bar(
             x=feature_values_plot,
             y=feature_names_plot,
@@ -472,14 +476,15 @@ elif page == "Prediction":
         st.plotly_chart(fig_features, use_container_width=True)
 
     # -------------------
-    # User input following feature importance
+    # User input based on feature importance
     # -------------------
     st.subheader("Enter your details for prediction")
     input_widgets = {}
 
     # Always include Gender and BMI Category
-    user_features = ["Gender", "BMI Category"] + [f[0] for f in sorted_features[:6]]  # Top 6 features
-    user_features = list(dict.fromkeys(user_features))  # Remove duplicates
+    top_features = [f[0] for f in sorted_features[:6]]  # top 6 features
+    user_features = ["Gender", "BMI Category"] + top_features
+    user_features = list(dict.fromkeys(user_features))  # remove duplicates
 
     for feature in user_features:
         key_name = f"input_{feature}"
@@ -488,7 +493,6 @@ elif page == "Prediction":
         elif feature == "BMI Category":
             input_widgets[feature] = st.selectbox("BMI Category", ["Underweight", "Normal", "Overweight", "Obese"], key=key_name)
         else:
-            # Numeric features as sliders
             if feature == "Age":
                 input_widgets[feature] = st.slider("Age (years)", 18, 80, 25, key=key_name)
             elif feature == "Sleep Duration":
@@ -512,7 +516,7 @@ elif page == "Prediction":
 
     input_df = pd.DataFrame([input_widgets])
 
-    # Encode categorical columns
+    # Encode categorical
     present_categoricals = [col for col in categorical_cols if col in input_df.columns]
     input_encoded = pd.get_dummies(input_df, columns=present_categoricals, drop_first=True)
 
@@ -522,7 +526,9 @@ elif page == "Prediction":
             input_encoded[col] = 0
     input_encoded = input_encoded[features]
 
-    # Prediction button
+    # -------------------
+    # Prediction
+    # -------------------
     if st.button("\u2705 Predict Sleep Disorder", key="predict_button"):
         input_scaled = scaler.transform(input_encoded)
         prediction_encoded = model.predict(input_scaled)[0]
@@ -539,7 +545,5 @@ elif page == "Prediction":
         st.subheader("\U0001F50E Prediction Result")
         st.success(f"Predicted Sleep Disorder: {prediction}")
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
-
-
 
 
