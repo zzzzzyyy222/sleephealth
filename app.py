@@ -201,24 +201,19 @@ elif page == "EDA":
     This negative trend clearly shows the effect of stress on sleep health.
     """)
 
-    # --- PHYSICAL ACTIVITY vs QUALITY OF SLEEP 
-    st.subheader("🏃 Physical Activity Level vs Quality of Sleep (Average)")
-    activity_sleep = filtered.groupby("Physical Activity Level")["Quality of Sleep"].mean().reset_index()
-    fig_activity = px.bar(
-        activity_sleep,
+     # --- PHYSICAL ACTIVITY vs QUALITY OF SLEEP (Scatter Plot) ---
+    st.subheader("🏃 Physical Activity Level vs Quality of Sleep")
+    fig_activity_sleep = px.scatter(
+        filtered,
         x="Physical Activity Level",
         y="Quality of Sleep",
-        color="Physical Activity Level",
-        text_auto=True,
-        color_discrete_sequence=px.colors.qualitative.Pastel
+        color="Gender",
+        trendline="ols",  # shows linear regression
+        color_discrete_sequence=px.colors.qualitative.Pastel,
+        title="Physical Activity Level vs Quality of Sleep"
     )
-    fig_activity.update_layout(yaxis_title="Average Sleep Quality (1-10)")
-    st.plotly_chart(fig_activity, use_container_width=True)
-    st.markdown("""
-    **Observation:**  
-    Individuals with higher physical activity levels generally report better sleep quality,  
-    highlighting the positive role of exercise in maintaining good sleep health.
-    """)
+    fig_activity_sleep.update_layout(yaxis_title="Quality of Sleep (1-10)")
+    st.plotly_chart(fig_activity_sleep, use_container_width=True)
 
     # -----------------------------
     # CORRELATION HEATMAP
