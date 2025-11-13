@@ -466,52 +466,56 @@ elif page == "Prediction":
         fig_top_features.update_layout(yaxis=dict(autorange="reversed"))
         st.plotly_chart(fig_top_features, use_container_width=True)
 
-    # User input for prediction: include all features
-    st.subheader("Enter your details for prediction")
-    input_widgets = {}
-    for feature in features:
-        if feature == "Gender":
-            input_widgets[feature] = st.selectbox("Gender", ["Male", "Female"])
-        elif feature == "BMI Category":
-            input_widgets[feature] = st.selectbox("BMI Category", ["Underweight", "Normal", "Overweight"])
-        elif feature == "Occupation":
-            input_widgets[feature] = st.text_input("Occupation")
+    # Determine top features based on importance
+top_n = 6  # maximum number of important features to display
+if importance:
+    sorted_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)
+    top_features_names = [f[0] for f in sorted_features[:top_n]]
+else:
+    top_features_names = []
+
+# Always include Gender, BMI Category, and Occupation
+top_features_names = ["Gender", "BMI Category", "Occupation"] + top_features_names
+top_features_names = list(dict.fromkeys(top_features_names))  # remove duplicates
+
+# User input section
+st.subheader("Enter your details for prediction")
+input_widgets = {}
+
+for feature in top_features_names:
+    if feature == "Gender":
+        input_widgets[feature] = st.selectbox("Gender", ["Male", "Female"])
+    elif feature == "BMI Category":
+        input_widgets[feature] = st.selectbox("BMI Category", ["Underweight", "Normal", "Overweight", "Obese"])
+    elif feature == "Occupation":
+        # Dropdown based on unique dataset occupations
+        occupations = df["Occupation"].dropna().unique().tolist()
+        input_widgets[feature] = st.selectbox("Occupation", occupations)
+    else:
+        # Numeric features as sliders
+        if feature == "Age":
+            input_widgets[feature] = st.slider("Age (years)", 18, 80, 25)
+        elif feature == "Sleep Duration":
+            input_widgets[feature] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0)
+        elif feature == "Quality of Sleep":
+            input_widgets[feature] = st.slider("Sleep Quality (1-10)", 1, 10, 7)
+        elif feature == "Physical Activity Level":
+            input_widgets[feature] = st.slider("Physical Activity Level (minutes/day)", 0, 300, 30)
+        elif feature == "Stress Level":
+            input_widgets[feature] = st.slider("Stress Level (1-10)", 1, 10, 5)
+        elif feature == "Heart Rate":
+            input_widgets[feature] = st.slider("Heart Rate (bpm)", 40, 120, 70)
+        elif feature == "Systolic":
+            input_widgets[feature] = st.slider("Systolic BP (mmHg)", 90, 180, 120)
+        elif feature == "Diastolic":
+            input_widgets[feature] = st.slider("Diastolic BP (mmHg)", 60, 120, 80)
+        elif feature == "Daily Steps":
+            input_widgets[feature] = st.slider("Daily Steps", 0, 20000, 5000)
         else:
-            # Numeric features as sliders
-            if feature == "Age":
-                input_widgets[feature] = st.slider("Age (years)", 18, 80, 25)
-            elif feature == "Sleep Duration":
-                input_widgets[feature] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0)
-            elif feature == "Quality of Sleep":
-                input_widgets[feature] = st.slider("Sleep Quality (1-10)", 1, 10, 7)
-            elif feature == "Physical Activity Level":
-                input_widgets[feature] = st.slider("Physical Activity Level (minutes/day)", 0, 300, 30)
-            elif feature == "Stress Level":
-                input_widgets[feature] = st.slider("Stress Level (1-10)", 1, 10, 5)
-            elif feature == "Heart Rate":
-                input_widgets[feature] = st.slider("Heart Rate (bpm)", 40, 120, 70)
-            elif feature == "Systolic":
-                input_widgets[feature] = st.slider("Systolic BP (mmHg)", 90, 180, 120)
-            elif feature == "Diastolic":
-                input_widgets[feature] = st.slider("Diastolic BP (mmHg)", 60, 120, 80)
-            elif feature == "Daily Steps":
-                input_widgets[feature] = st.slider("Daily Steps", 0, 20000, 5000)
-            else:
-                input_widgets[feature] = st.slider(feature, 0, 100, 0)
+            input_widgets[feature] = st.slider(feature, 0, 100, 0)
 
-    input_df = pd.DataFrame([input_widgets])
-
-    # Encode categorical columns
-    input_encoded = input_df.copy()
-    for col in ["Gender", "BMI Category", "Occupation"]:
-        le_col = LabelEncoder()
-        input_encoded[col] = le_col.fit_transform(input_encoded[col])
-
-    # Ensure all model-required columns exist
-    for col in features:
-        if col not in input_encoded.columns:
-            input_encoded[col] = 0
-    input_encoded = input_encoded[features]
+# Convert input to dataframe
+input_df = pd.DataFrame([input_widgets])
 
     # Prediction
     if st.button("\u2705 Predict Sleep Disorder"):
