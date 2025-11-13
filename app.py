@@ -4,7 +4,7 @@ import numpy as np
 import plotly.express as px
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
@@ -453,7 +453,7 @@ elif page == "Prediction":
     input_df = pd.DataFrame([input_dict])
 
     # Prediction
-    if st.button("\u2705 Predict Sleep Disorder"):
+    elif st.button("\u2705 Predict Sleep Disorder"):
         input_encoded = pd.get_dummies(input_df, columns=["Gender", "Occupation", "BMI Category"], drop_first=True)
         for col in features:
             if col not in input_encoded.columns:
