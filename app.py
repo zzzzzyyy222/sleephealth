@@ -473,7 +473,35 @@ elif page == "Prediction":
         st.dataframe(report_df)
 
 st.subheader("🔍 Feature Importance")
+  # Include "None" as Normal Sleep
+    df_pred = df.copy()
+    df_pred["Sleep Disorder"] = df_pred["Sleep Disorder"].fillna("None")
+    df_pred = df_pred.drop(columns=["Person ID"])  # drop identifier
 
+    # --- Expanded preprocessing ---
+    # Split blood pressure into systolic/diastolic if needed
+    if "Blood Pressure" in df_pred.columns:
+        bp_split = df_pred["Blood Pressure"].str.split("/", expand=True).astype(float)
+        df_pred["Systolic"] = bp_split[0]
+        df_pred["Diastolic"] = bp_split[1]
+        df_pred = df_pred.drop(columns=["Blood Pressure"])
+
+    categorical_cols = ["Gender", "Occupation", "BMI Category"]
+    numeric_cols = df_pred.drop(columns=["Sleep Disorder"] + categorical_cols).select_dtypes(include=[np.number]).columns.tolist()
+
+    from sklearn.preprocessing import OneHotEncoder
+    encoder = OneHotEncoder(sparse=False, drop="first")
+    encoded = encoder.fit_transform(df_pred[categorical_cols])
+    encoded_cols = encoder.get_feature_names_out(categorical_cols)
+
+    # Build final dataset
+    X_full = np.hstack([df_pred[numeric_cols].values, encoded])
+    features = numeric_cols + list(encoded_cols)
+
+    # Encode target
+    from sklearn.preprocessing import LabelEncoder
+    le = LabelEncoder()
+    y = le.fit_transform(df_pred["Sleep Disorder"])
 importance = None
 
 if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
