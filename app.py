@@ -331,8 +331,8 @@ elif page == "EDA":
     Sleep disorder prevalence can differ across BMI categories, showing general trends rather than specific values. Patterns suggest potential associations between body composition and sleep health outcomes. Visualizing these relationships helps highlight populations that might benefit from lifestyle interventions. The donut chart provides an overview of how BMI relates to sleep disorders in the dataset.
     """)
 
-if page == "Prediction":
-    st.title("\u1F52E Sleep Disorder Prediction")
+elif page == "Prediction":
+    st.title("\U0001F52E Sleep Disorder Prediction")
 
     # Prepare dataset
     df_pred = df.copy()
@@ -376,7 +376,7 @@ if page == "Prediction":
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     # SMOTE option
-    st.subheader("\u1F4CA Class Balancing (SMOTE option)")
+    st.subheader("\U0001F4CA Class Balancing (SMOTE option)")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True)
 
     if balance:
@@ -417,10 +417,10 @@ if page == "Prediction":
     report_df = pd.DataFrame(report_dict).transpose().round(2)
 
     st.subheader(f"{model_choice} Evaluation Metrics")
-    st.markdown(f"- \u2605 **Accuracy:** `{accuracy_score(y_test, y_pred):.2f}`")
-    st.markdown(f"- \u2022 **Classes:** `{', '.join(le.classes_)}`")
+    st.markdown(f"- **Accuracy:** `{accuracy_score(y_test, y_pred):.2f}`")
+    st.markdown(f"- **Classes:** `{', '.join(le.classes_)}`")
 
-    with st.expander("\u1F4D8 Classification Report", expanded=False):
+    with st.expander("\U0001F4D8 Classification Report", expanded=False):
         st.dataframe(report_df)
 
     # Feature importance
@@ -435,7 +435,7 @@ if page == "Prediction":
         importance = dict(zip(features, perm.importances_mean))
 
     # Top features
-    st.subheader("\u1F9E0 Predict Sleep Disorder")
+    st.subheader("\U0001F9E0 Predict Sleep Disorder")
     top_n = 10
     top_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)[:top_n]
     top_feature_names = [f[0] for f in top_features]
@@ -461,7 +461,7 @@ if page == "Prediction":
 
     input_df = pd.DataFrame([input_dict])
 
-    # Prediction button
+    # Prediction
     if st.button("\u2705 Predict Sleep Disorder"):
         input_encoded = pd.get_dummies(input_df, columns=["Gender", "Occupation", "BMI Category"], drop_first=True)
         for col in features:
@@ -481,8 +481,8 @@ if page == "Prediction":
             "Sleep Apnea": "This often relates to breathing interruptions during sleep. Lifestyle changes such as weight management and sleeping on your side can help."
         }
 
-        st.subheader("\u1F50E Prediction Result")
+        st.subheader("\U0001F50E Prediction Result")
         st.success(f"Predicted Sleep Disorder: {prediction}")
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
-        st.subheader("\u1F4CB Prediction Summary")
-        
+        st.subheader("\U0001F4CB Prediction Summary")
+
