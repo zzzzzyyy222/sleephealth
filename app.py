@@ -365,7 +365,7 @@ Overall, the treemap effectively illustrates **gender-based differences** while 
 """)
 
 elif page == "Prediction":
-    st.title("🔮 Sleep Disorder Prediction")
+    st.title("\U0001F52E Sleep Disorder Prediction")
 
     # Prepare dataset
     df_pred = df.copy()
@@ -409,7 +409,7 @@ elif page == "Prediction":
     )
 
     # Class Balancing
-    st.subheader("⚖️ Class Balancing (SMOTE option)")
+    st.subheader("\U0001F4CA Class Balancing (SMOTE option)")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True, key="smote_checkbox")
 
     if balance:
@@ -449,11 +449,11 @@ elif page == "Prediction":
     report_dict = classification_report(y_test, y_pred, target_names=le.classes_, output_dict=True)
     report_df = pd.DataFrame(report_dict).transpose().round(2)
 
-    st.subheader("📊 " + f"{model_choice} Evaluation Metrics")  
+    st.subheader("\U+1F4CA " + f"{model_choice} Evaluation Metrics")  
     st.markdown(f"- **Accuracy:** `{accuracy_score(y_test, y_pred):.2f}`")
     st.markdown(f"- **Classes:** `{', '.join(le.classes_)}`")
 
-    with st.expander("📘 Classification Report", expanded=False):
+    with st.expander("\U0001F4D8 Classification Report", expanded=False):
         st.dataframe(report_df)
 
     # --- Feature Importance (calculated but not displayed) ---
@@ -469,7 +469,7 @@ elif page == "Prediction":
     # (kept in memory for reporting, not shown in dashboard)
 
     # --- Prediction Input ---
-    st.subheader("🧠 Predict Sleep Disorder")
+    st.subheader("\U0001F9E0 Predict Sleep Disorder")
 
     # Numeric inputs with units
     age = st.slider("Age (years)", int(df["Age"].min()), int(df["Age"].max()), int(df["Age"].mean()))
@@ -505,7 +505,7 @@ elif page == "Prediction":
     input_df = pd.DataFrame([input_dict])
 
     # Predict only when button is clicked
-    if st.button("✅ Predict Sleep Disorder"):
+    if st.button("\u2705 Predict Sleep Disorder"):
         # Apply same preprocessing (get_dummies for categoricals)
         input_encoded = pd.get_dummies(input_df, columns=["Gender","Occupation","BMI Category"], drop_first=True)
 
@@ -527,17 +527,17 @@ elif page == "Prediction":
         # Advice mapping
         advice_map = {
             "Normal Sleep": "Your sleep pattern looks healthy. Keep maintaining good habits like regular exercise and consistent bedtimes.",
-            "Insomnia": "You may be experiencing insomnia. Try to improve sleep hygiene — reduce screen time before bed, keep a consistent schedule, and consider relaxation techniques.",
-            "Sleep Apnea": "Signs point to sleep apnea. This often relates to breathing interruptions during sleep. It’s best to consult a healthcare professional for proper evaluation."
+            "Insomnia": "You may be experiencing insomnia. Try to improve sleep hygiene, reduce screen time before bed, keep a consistent schedule, and consider relaxation techniques. Focus on lifestyle changes like losing weight, exercising, and avoiding alcohol, sedatives, and smoking.",
+            "Sleep Apnea": " This often relates to breathing interruptions during sleep. Focus on lifestyle changes like losing weight, exercising, and avoiding alcohol, sedatives, and smoking. It is also helpful to change your sleeping position to your side and to address nasal congestion. It’s best to consult a healthcare professional for proper evaluation."
         }
 
-        # Display result + advice
-        st.subheader("🔎 Prediction Result") 
+        # Display result and advice
+        st.subheader("\U0001F50E Prediction Result") 
         st.success(f"Predicted Sleep Disorder: {prediction}")
 
-        st.markdown(f"💡 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
+        st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
 
-        st.subheader("📋 Prediction Summary") 
+        st.subheader("\U0001F4CB Prediction Summary") 
         st.table(input_df.assign(Predicted_Disorder=prediction))
 
 
