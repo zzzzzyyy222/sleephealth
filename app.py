@@ -442,46 +442,43 @@ elif page == "Prediction":
         perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
         importance = dict(zip(features, perm.importances_mean))
 
-    # Top 6 features for user input
+    # Sort features by importance
     if importance:
         sorted_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)
-        top_features_names = [f[0] for f in sorted_features[:6]]
+        top_features_names_plot = [f[0] for f in sorted_features]
+        top_features_values = [f[1] for f in sorted_features]
     else:
-        top_features_names = []
+        top_features_names_plot, top_features_values = [], []
 
-    # Always include Gender and BMI Category
+    # Always include Gender and BMI Category at the top
     for cat in ["Gender", "BMI Category"]:
-        if cat not in top_features_names:
-            top_features_names.append(cat)
+        if cat not in top_features_names_plot:
+            top_features_names_plot.insert(0, cat)
+            top_features_values.insert(0, 0)
 
+    # Visualization of all feature importances
+    fig_top_features = px.bar(
+        x=top_features_values,
+        y=top_features_names_plot,
+        orientation='h',
+        color=top_features_values,
+        color_continuous_scale='RdBu',
+        title=f"Feature Importance for {model_choice}",
+        labels={'x': 'Importance', 'y': 'Feature'}
+    )
+    fig_top_features.update_layout(yaxis=dict(autorange="reversed"))
+    st.plotly_chart(fig_top_features, use_container_width=True)
+
+    # User input widgets based on importance
     st.subheader("Enter your details for prediction")
-
-    # Visualize top features
-    if importance:
-        top_features_values = [importance[f[0]] for f in sorted_features[:6]]
-        top_features_names_plot = [f[0] for f in sorted_features[:6]]
-
-        fig_top_features = px.bar(
-            x=top_features_values,
-            y=top_features_names_plot,
-            orientation='h',
-            color=top_features_values,
-            color_continuous_scale='RdBu',
-            title=f"Top {len(top_features_names_plot)} Important Features for {model_choice}",
-            labels={'x': 'Importance', 'y': 'Feature'}
-        )
-        fig_top_features.update_layout(yaxis=dict(autorange="reversed"))  # Largest on top
-        st.plotly_chart(fig_top_features, use_container_width=True)
-
-    # User input widgets
     input_widgets = {}
-    for feature in top_features_names:
+    for feature in top_features_names_plot:
         if feature == "Gender":
             input_widgets[feature] = st.selectbox("Gender: Select the gender", ["Male", "Female"])
         elif feature == "BMI Category":
             input_widgets[feature] = st.selectbox("BMI Category: Select BMI group", ["Normal", "Overweight", "Obese"])
         else:
-            # Red line sliders for numeric inputs
+            # Numeric sliders (red scroll line style)
             if feature == "Age":
                 input_widgets[feature] = st.slider("Age (years)", 18, 80, 25)
             elif feature == "Sleep Duration":
@@ -530,6 +527,5 @@ elif page == "Prediction":
         st.subheader("\U0001F50E Prediction Result")
         st.success(f"Predicted Sleep Disorder: {prediction}")
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
-
 
 
