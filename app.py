@@ -349,12 +349,14 @@ elif page == "Prediction":
         df_pred["Diastolic"] = bp_split[1]
         df_pred = df_pred.drop(columns=["Blood Pressure"])
 
-    categorical_cols = ["Gender", "Occupation", "BMI Category"]
+    # Only one-hot encode Gender and BMI Category
+    categorical_cols = ["Gender", "BMI Category"]
     df_encoded = pd.get_dummies(df_pred, columns=categorical_cols, drop_first=True)
 
     features = [col for col in df_encoded.columns if col != "Sleep Disorder"]
     X_full = df_encoded[features].values
 
+    # Label encode target
     le = LabelEncoder()
     y = le.fit_transform(df_encoded["Sleep Disorder"])
 
@@ -445,7 +447,7 @@ elif page == "Prediction":
     # Sort all features by importance
     if importance:
         sorted_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)
-        top_features_names_plot = [f[0] for f in sorted_features]  # include all features
+        top_features_names_plot = [f[0] for f in sorted_features]
         top_features_values_plot = [f[1] for f in sorted_features]
 
         # Visualize all features
@@ -490,6 +492,8 @@ elif page == "Prediction":
                 input_widgets[feature] = st.slider("Diastolic BP (mmHg)", 60, 120, 80)
             elif feature == "Daily Steps":
                 input_widgets[feature] = st.slider("Daily Steps", 0, 20000, 5000)
+            elif feature == "Occupation":
+                input_widgets[feature] = st.text_input("Occupation: Enter your profession", "Software Engineer")
             else:
                 input_widgets[feature] = st.slider(feature, 0, 100, 0)
 
@@ -522,6 +526,7 @@ elif page == "Prediction":
         st.subheader("\U0001F50E Prediction Result")
         st.success(f"Predicted Sleep Disorder: {prediction}")
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
+
 
 
 
