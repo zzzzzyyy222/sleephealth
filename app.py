@@ -485,5 +485,4 @@ if page == "Prediction":
         st.success(f"Predicted Sleep Disorder: {prediction}")
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
         st.subheader("\u1F4CB Prediction Summary")
-        on, 'No advice available for this outcome.')}")
-        st.subheader("\U0001F4CB Prediction Summary")
+        
