@@ -446,7 +446,7 @@ elif page == "Prediction":
     st.subheader("\U0001F9E0 Predict Sleep Disorder")
     st.markdown(f"Showing top **{top_n} important features** based on {model_choice} importance ranking.")
 
-   input_df = pd.DataFrame([input_dict])
+    input_df = pd.DataFrame([input_dict])  # ✅ fixed indentation here
 
     # Encode only existing categoricals
     present_categoricals = [col for col in categorical_cols if col in input_df.columns]
@@ -474,6 +474,7 @@ elif page == "Prediction":
         st.subheader("\U0001F50E Prediction Result")
         st.success(f"Predicted Sleep Disorder: {prediction}")
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
+
     
        
 
