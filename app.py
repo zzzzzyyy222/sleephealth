@@ -446,26 +446,13 @@ elif page == "Prediction":
     st.subheader("\U0001F9E0 Predict Sleep Disorder")
     st.markdown(f"Showing top **{top_n} important features** based on {model_choice} importance ranking.")
 
-    input_dict = {}
-    used_categorical = set()
+   input_df = pd.DataFrame([input_dict])
 
-    for feature, _ in top_features:
-        if any(cat in feature for cat in ["Gender", "Occupation", "BMI Category"]):
-            base_feature = "Gender" if "Gender" in feature else \
-                           "Occupation" if "Occupation" in feature else "BMI Category"
-            if base_feature not in used_categorical:
-                options = df[base_feature].unique()
-                input_dict[base_feature] = st.selectbox(f"{base_feature}", options)
-                used_categorical.add(base_feature)
-        else:
-            col_min, col_max = float(df_pred[feature].min()), float(df_pred[feature].max())
-            default = float(df_pred[feature].mean())
-            input_dict[feature] = st.slider(f"{feature}", col_min, col_max, default)
-
-    input_df = pd.DataFrame([input_dict])
+    # Encode only existing categoricals
     present_categoricals = [col for col in categorical_cols if col in input_df.columns]
     input_encoded = pd.get_dummies(input_df, columns=present_categoricals, drop_first=True)
 
+    # Ensure all model-required columns exist
     for col in features:
         if col not in input_encoded.columns:
             input_encoded[col] = 0
@@ -487,7 +474,6 @@ elif page == "Prediction":
         st.subheader("\U0001F50E Prediction Result")
         st.success(f"Predicted Sleep Disorder: {prediction}")
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
-        st.subheader("\U0001F4CB Prediction Summary")
-        st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
-        st.subheader("\U0001F4CB Prediction Summary")
+    
+       
 
