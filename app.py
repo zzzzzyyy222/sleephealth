@@ -234,6 +234,7 @@ elif page == "EDA":
         title="Physical Activity Level vs Quality of Sleep"
     )
     fig_activity_sleep.update_layout(yaxis_title="Quality of Sleep (1-10)")
+    fig_activity_sleep.update_layout(xaxis_title="Physical Activity Level(Minutes)")
     st.plotly_chart(fig_activity_sleep, use_container_width=True)
     st.markdown("""
     Participants with higher physical activity levels generally report better sleep quality. This suggests a positive relationship between exercise and restful sleep. The scatter plot allows us to observe overall patterns and trends rather than focusing on specific values. These insights highlight the potential benefits of regular activity on sleep health in a general context.
