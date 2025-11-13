@@ -514,8 +514,8 @@ for feature in top_features_names:
         else:
             input_widgets[feature] = st.slider(feature, 0, 100, 0)
 
-# Convert input to dataframe
-input_df = pd.DataFrame([input_widgets])
+        # Convert input to dataframe
+        input_df = pd.DataFrame([input_widgets])
 
     # Prediction
     if st.button("\u2705 Predict Sleep Disorder"):
