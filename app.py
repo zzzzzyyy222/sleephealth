@@ -380,28 +380,22 @@ elif page == "Prediction":
         df_pred["Diastolic"] = bp_split[1]
         df_pred = df_pred.drop(columns=["Blood Pressure"])
 
-    # Separate categorical and numeric columns
+    # Encode categorical features using pandas
     categorical_cols = ["Gender", "Occupation", "BMI Category"]
-    numeric_cols = df_pred.drop(columns=["Sleep Disorder"] + categorical_cols).select_dtypes(include=[np.number]).columns.tolist()
+    df_encoded = pd.get_dummies(df_pred, columns=categorical_cols, drop_first=True)
 
-    # Encode categorical features
-    from sklearn.preprocessing import OneHotEncoder
-    encoder = OneHotEncoder(sparse=False, drop="first")
-    encoded = encoder.fit_transform(df_pred[categorical_cols])
-    encoded_cols = encoder.get_feature_names_out(categorical_cols)
+    # Build features and target
+    features = [col for col in df_encoded.columns if col != "Sleep Disorder"]
+    X_full = df_encoded[features].values
 
-    # Build final dataset
-    X_full = np.hstack([df_pred[numeric_cols].values, encoded])
-    features = numeric_cols + list(encoded_cols)
-
-    # Encode target labels
     from sklearn.preprocessing import LabelEncoder
     le = LabelEncoder()
-    y = le.fit_transform(df_pred["Sleep Disorder"])
+    y = le.fit_transform(df_encoded["Sleep Disorder"])
 
-    # Outlier Detection (Z-score) on numeric part only
+    # Outlier Detection (Z-score) on numeric features only
     from scipy.stats import zscore
-    z_scores = np.abs(zscore(df_pred[numeric_cols]))
+    numeric_cols = df_encoded.select_dtypes(include=[np.number]).columns.tolist()
+    z_scores = np.abs(zscore(df_encoded[numeric_cols]))
     mask = (z_scores < 3).all(axis=1)
     X_full = X_full[mask]
     y = y[mask]
@@ -411,7 +405,6 @@ elif page == "Prediction":
     X = scaler.fit_transform(X_full)
 
     # Train-test split
-    from sklearn.model_selection import train_test_split
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
@@ -453,7 +446,6 @@ elif page == "Prediction":
     y_pred = model.predict(X_test)
 
     # Metrics
-    from sklearn.metrics import accuracy_score, classification_report
     report_dict = classification_report(y_test, y_pred, target_names=le.classes_, output_dict=True)
     report_df = pd.DataFrame(report_dict).transpose().round(2)
 
@@ -495,5 +487,6 @@ elif page == "Prediction":
         st.dataframe(imp_df.set_index("Feature"))
     else:
         st.info("Feature importance not available for this model.")
+
 
 
