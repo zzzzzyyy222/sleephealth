@@ -337,12 +337,12 @@ elif page == "EDA":
 elif page == "Prediction":
     st.title("\U0001F52E Sleep Disorder Prediction")
 
-    # Prepare data
+    # Prepare dataset
     df_pred = df.copy()
     df_pred["Sleep Disorder"] = df_pred["Sleep Disorder"].fillna("None")
     df_pred = df_pred.drop(columns=["Person ID"])
 
-    # Split blood pressure
+    # Split Blood Pressure if exists
     if "Blood Pressure" in df_pred.columns:
         bp_split = df_pred["Blood Pressure"].str.split("/", expand=True).astype(float)
         df_pred["Systolic"] = bp_split[0]
@@ -358,15 +358,18 @@ elif page == "Prediction":
     le = LabelEncoder()
     y = le.fit_transform(df_encoded["Sleep Disorder"])
 
+    # Remove outliers
     numeric_cols = df_encoded.select_dtypes(include=[np.number]).columns.tolist()
     z_scores = np.abs(zscore(df_encoded[numeric_cols]))
     mask = (z_scores < 3).all(axis=1)
     X_full = X_full[mask]
     y = y[mask]
 
+    # Scale features
     scaler = StandardScaler()
     X = scaler.fit_transform(X_full)
 
+    # Train-test split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     # SMOTE
@@ -418,12 +421,14 @@ elif page == "Prediction":
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
-    # Evaluation
+    # Evaluation metrics
     report_dict = classification_report(y_test, y_pred, target_names=le.classes_, output_dict=True)
     report_df = pd.DataFrame(report_dict).transpose().round(2)
+
     st.subheader(f"{model_choice} Evaluation Metrics")
     st.markdown(f"- **Accuracy:** `{accuracy_score(y_test, y_pred):.2f}`")
     st.markdown(f"- **Classes:** `{', '.join(le.classes_)}`")
+
     with st.expander("\U0001F4D8 Classification Report", expanded=False):
         st.dataframe(report_df)
 
@@ -437,44 +442,51 @@ elif page == "Prediction":
         perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
         importance = dict(zip(features, perm.importances_mean))
 
+    # Top 6 features for user input
     if importance:
         sorted_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)
-        top_features_names = [f[0] for f in sorted_features[:6]]  # max 6 features
+        top_features_names = [f[0] for f in sorted_features[:6]]
     else:
         top_features_names = []
 
-    st.subheader("\U0001F9E0 Predict Sleep Disorder")
-    st.markdown(f"Showing top **{len(top_features_names)} important features** based on {model_choice} importance ranking.")
+    # Always include Gender and BMI Category
+    for cat in ["Gender", "BMI Category"]:
+        if cat not in top_features_names:
+            top_features_names.append(cat)
 
-    # User Input based on top features
+    st.subheader("Enter your details for prediction")
+
+    # User input widgets
     input_widgets = {}
     for feature in top_features_names:
         if feature == "Gender":
-            input_widgets[feature] = st.selectbox("Gender", ["Male", "Female"])
+            input_widgets[feature] = st.selectbox("Gender: Select the gender", ["Male", "Female"])
         elif feature == "BMI Category":
-            input_widgets[feature] = st.selectbox("BMI Category", ["Normal", "Overweight", "Obese"])
-        elif feature == "Age":
-            input_widgets[feature] = st.slider("Age (years)", 18, 80, 25)
-        elif feature == "Sleep Duration":
-            input_widgets[feature] = st.number_input("Sleep Duration (hours)", 0.0, 12.0, 7.0)
-        elif feature == "Quality of Sleep":
-            input_widgets[feature] = st.slider("Quality of Sleep (1-10)", 1, 10, 7)
-        elif feature == "Stress Level":
-            input_widgets[feature] = st.slider("Stress Level (1-10)", 1, 10, 5)
-        elif feature == "Heart Rate":
-            input_widgets[feature] = st.number_input("Heart Rate (bpm)", 40, 120, 70)
-        elif feature == "Systolic":
-            input_widgets[feature] = st.number_input("Systolic BP (mmHg)", 90, 180, 120)
-        elif feature == "Diastolic":
-            input_widgets[feature] = st.number_input("Diastolic BP (mmHg)", 60, 120, 80)
-        elif feature == "Daily Steps":
-            input_widgets[feature] = st.number_input("Daily Steps", 0, 20000, 5000)
+            input_widgets[feature] = st.selectbox("BMI Category: Select BMI group", ["Normal", "Overweight", "Obese"])
         else:
-            input_widgets[feature] = st.number_input(feature, 0, 100, 0)
+            # Red line sliders for numeric inputs
+            if feature == "Age":
+                input_widgets[feature] = st.slider("Age (years)", 18, 80, 25)
+            elif feature == "Sleep Duration":
+                input_widgets[feature] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0)
+            elif feature == "Quality of Sleep":
+                input_widgets[feature] = st.slider("Sleep Quality (1-10)", 1, 10, 7)
+            elif feature == "Stress Level":
+                input_widgets[feature] = st.slider("Stress Level (1-10)", 1, 10, 5)
+            elif feature == "Heart Rate":
+                input_widgets[feature] = st.slider("Heart Rate (bpm)", 40, 120, 70)
+            elif feature == "Systolic":
+                input_widgets[feature] = st.slider("Systolic BP (mmHg)", 90, 180, 120)
+            elif feature == "Diastolic":
+                input_widgets[feature] = st.slider("Diastolic BP (mmHg)", 60, 120, 80)
+            elif feature == "Daily Steps":
+                input_widgets[feature] = st.slider("Daily Steps", 0, 20000, 5000)
+            else:
+                input_widgets[feature] = st.slider(feature, 0, 100, 0)
 
     input_df = pd.DataFrame([input_widgets])
 
-    # Encode only existing categoricals
+    # Encode categorical columns
     present_categoricals = [col for col in categorical_cols if col in input_df.columns]
     input_encoded = pd.get_dummies(input_df, columns=present_categoricals, drop_first=True)
 
