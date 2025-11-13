@@ -12,6 +12,8 @@ from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score
+from collections import Counter
+import plotly.express as px
 import os
 
 # Page config
@@ -390,25 +392,42 @@ elif page == "Prediction":
     else:
         st.info("Oversampling not applied.")
 
-    balanced_counts = Counter(y_train)
-    labels = le.classes_
-    before = [original_counts[i] for i in range(len(labels))]
-    after = [balanced_counts[i] for i in range(len(labels))]
 
-    import matplotlib.pyplot as plt
-    fig, ax = plt.subplots()
-    bar_width = 0.35
-    x = np.arange(len(labels))
+# Count before SMOTE
+y_train_before = y_train if not balance else y[mask][y_train.index] if hasattr(y_train, 'index') else None
 
-    ax.bar(x - bar_width/2, before, bar_width, label='Before SMOTE', color='green')
-    ax.bar(x + bar_width/2, after, bar_width, label='After SMOTE', color='orange')
-    ax.set_xlabel('Class')
-    ax.set_ylabel('Count')
-    ax.set_title('Class Distribution Before and After SMOTE')
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels)
-    ax.legend()
-    st.pyplot(fig)
+if balance:
+    # Get counts before and after
+    y_before_counts = Counter(y[mask])  # Original counts
+    y_after_counts = Counter(y_train)   # After SMOTE
+
+    # Prepare DataFrame
+    df_balance = pd.DataFrame({
+        "Class": list(le.classes_) * 2,
+        "Count": [y_before_counts.get(i, 0) for i in range(len(le.classes_))] +
+                 [y_after_counts.get(i, 0) for i in range(len(le.classes_))],
+        "Stage": ["Before SMOTE"] * len(le.classes_) + ["After SMOTE"] * len(le.classes_)
+    })
+
+    # Plot
+    fig_balance = px.bar(
+        df_balance,
+        x="Class",
+        y="Count",
+        color="Stage",
+        barmode="group",
+        title="Class Distribution Before and After SMOTE",
+        color_discrete_map={"Before SMOTE": "#62C3A5", "After SMOTE": "#F78364"}
+    )
+    fig_balance.update_layout(
+        xaxis_title="Class",
+        yaxis_title="Count",
+        title_x=0.3
+    )
+    st.plotly_chart(fig_balance, use_container_width=True)
+
+else:
+    st.info("SMOTE not applied — no balancing visualization to show.")
 
     # Model selection
     st.subheader("Choose Model")
