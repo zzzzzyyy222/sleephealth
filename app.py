@@ -160,7 +160,7 @@ elif page == "EDA":
     # -----------------------------
     # SECTION 1: SLEEP PATTERNS
     # -----------------------------
-    st.header("1️⃣ Sleep Patterns & Disorders")
+    st.header("1️. Sleep Patterns & Disorders")
 
     # Summary Metrics
     col1, col2, col3, col4 = st.columns(4)
@@ -223,7 +223,7 @@ elif page == "EDA":
     # -----------------------------
     # SECTION 2: LIFESTYLE & ACTIVITY
     # -----------------------------
-    st.header("2️⃣ Lifestyle & Physical Activity")
+    st.header("2️. Lifestyle & Physical Activity")
 
     # Physical Activity vs Sleep Quality (Scatter Plot)
     st.subheader("\U0001F3C3 Physical Activity Level vs Sleep Quality")
@@ -248,7 +248,7 @@ elif page == "EDA":
     # -----------------------------
     # SECTION 3: CORRELATION
     # -----------------------------
-    st.header("3️⃣ Correlation Analysis")
+    st.header("3️. Correlation Analysis")
     numeric_cols = filtered.select_dtypes(include=np.number).columns.tolist()
     cols_to_remove = ["Person ID", "Person_ID", "ID", "id"]
     numeric_cols = [col for col in numeric_cols if col not in cols_to_remove]
@@ -275,7 +275,7 @@ elif page == "EDA":
     # -----------------------------
     # SECTION 4: SLEEP DISORDER ANALYSIS
     # -----------------------------
-    st.header("4️⃣ Sleep Disorder Analysis")
+    st.header("4️. Sleep Disorder Analysis")
 
     # Sleep Disorder Distribution (Pie)
     st.subheader("\U0001FA7A Sleep Disorder Distribution")
@@ -331,8 +331,6 @@ elif page == "EDA":
     Sleep disorder prevalence can differ across BMI categories, showing general trends rather than specific values. Patterns suggest potential associations between body composition and sleep health outcomes. Visualizing these relationships helps highlight populations that might benefit from lifestyle interventions. The donut chart provides an overview of how BMI relates to sleep disorders in the dataset.
     """)
 
-
-   
 elif page == "Prediction":
     st.title("\U0001F52E Sleep Disorder Prediction")
 
@@ -373,6 +371,7 @@ elif page == "Prediction":
     X = scaler.fit_transform(X_full)
 
     # Train-test split
+    from sklearn.model_selection import train_test_split
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
@@ -381,16 +380,46 @@ elif page == "Prediction":
     st.subheader("\U0001F4CA Class Balancing (SMOTE option)")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True, key="smote_checkbox")
 
+    from collections import Counter
+    import plotly.express as px
+
+    # Count before SMOTE
+    y_train_before = y_train.copy()
+
     if balance:
         from imblearn.over_sampling import SMOTE
         smote = SMOTE(random_state=42)
         X_train, y_train = smote.fit_resample(X_train, y_train)
-        st.info("SMOTE applied!")  
+        st.info("✅ SMOTE applied!")
+
+        # Visualize class distribution before and after SMOTE
+        y_before_counts = Counter(y_train_before)
+        y_after_counts = Counter(y_train)
+
+        df_balance = pd.DataFrame({
+            "Class": list(le.classes_) * 2,
+            "Count": [y_before_counts.get(i, 0) for i in range(len(le.classes_))] +
+                     [y_after_counts.get(i, 0) for i in range(len(le.classes_))],
+            "Stage": ["Before SMOTE"] * len(le.classes_) + ["After SMOTE"] * len(le.classes_)
+        })
+
+        fig_balance = px.bar(
+            df_balance,
+            x="Class",
+            y="Count",
+            color="Stage",
+            barmode="group",
+            title="Class Distribution Before and After SMOTE",
+            color_discrete_map={"Before SMOTE": "#62C3A5", "After SMOTE": "#F78364"}
+        )
+        fig_balance.update_layout(xaxis_title="Class", yaxis_title="Count", title_x=0.3)
+        st.plotly_chart(fig_balance, use_container_width=True)
+
     else:
-        st.info("Oversampling not applied.")  
+        st.info("Oversampling not applied — using imbalanced dataset.")
 
     # Model selection
-    st.subheader("Choose Model") 
+    st.subheader("Choose Model")
     model_choice = st.selectbox(
         "Select Model",
         ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"],
@@ -418,7 +447,7 @@ elif page == "Prediction":
     report_dict = classification_report(y_test, y_pred, target_names=le.classes_, output_dict=True)
     report_df = pd.DataFrame(report_dict).transpose().round(2)
 
-    st.subheader("{model_choice} Evaluation Metrics")  
+    st.subheader(f"{model_choice} Evaluation Metrics")
     st.markdown(f"- **Accuracy:** `{accuracy_score(y_test, y_pred):.2f}`")
     st.markdown(f"- **Classes:** `{', '.join(le.classes_)}`")
 
@@ -435,12 +464,11 @@ elif page == "Prediction":
         from sklearn.inspection import permutation_importance
         perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
         importance = dict(zip(features, perm.importances_mean))
-    # (kept in memory for reporting, not shown in dashboard)
 
     # --- Prediction Input ---
     st.subheader("\U0001F9E0 Predict Sleep Disorder")
 
-    # Numeric inputs with units
+    # Numeric inputs
     age = st.slider("Age (years)", int(df["Age"].min()), int(df["Age"].max()), int(df["Age"].mean()))
     sleep = st.slider("Sleep Duration (hours per day)", 4.0, 10.0, 7.0)
     quality = st.slider("Quality of Sleep (scale 1–10)", 1, 10, 7)
@@ -496,18 +524,16 @@ elif page == "Prediction":
         # Advice mapping
         advice_map = {
             "Normal Sleep": "Your sleep pattern looks healthy. Keep maintaining good habits like regular exercise and consistent bedtimes.",
-            "Insomnia": "You may be experiencing insomnia. Try to improve sleep hygiene, reduce screen time before bed, keep a consistent schedule, and consider relaxation techniques. Focus on lifestyle changes like losing weight, exercising, and avoiding alcohol, sedatives, and smoking.",
-            "Sleep Apnea": " This often relates to breathing interruptions during sleep. Focus on lifestyle changes like losing weight, exercising, and avoiding alcohol, sedatives, and smoking. It is also helpful to change your sleeping position to your side and to address nasal congestion. It’s best to consult a healthcare professional for proper evaluation."
+            "Insomnia": "You may be experiencing insomnia. Try to improve sleep hygiene, reduce screen time before bed, keep a consistent schedule, and consider relaxation techniques.",
+            "Sleep Apnea": "This often relates to breathing interruptions during sleep. Focus on lifestyle changes like losing weight, exercising, and avoiding alcohol or smoking. It’s best to consult a healthcare professional for proper evaluation."
         }
 
         # Display result and advice
-        st.subheader("\U0001F50E Prediction Result") 
+        st.subheader("\U0001F50E Prediction Result")
         st.success(f"Predicted Sleep Disorder: {prediction}")
 
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice_map.get(prediction, 'No advice available for this outcome.')}")
 
-        st.subheader("\U0001F4CB Prediction Summary") 
+        st.subheader("\U0001F4CB Prediction Summary")
         st.table(input_df.assign(Predicted_Disorder=prediction))
-
-
 
