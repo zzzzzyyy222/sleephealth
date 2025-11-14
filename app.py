@@ -420,10 +420,11 @@ elif page == "Prediction":
     # Model selection
     # -------------------
     st.subheader("Choose Model")
-    model_choice = st.selectbox("Select Model",
-                                ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"])
+    model_choice = st.selectbox(
+        "Select Model",
+        ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"]
+    )
 
-    # Proper class_weight logic
     if model_choice == "Random Forest":
         model = RandomForestClassifier(class_weight=None if balance else "balanced")
     elif model_choice == "Logistic Regression":
@@ -442,15 +443,6 @@ elif page == "Prediction":
     y_pred = model.predict(X_test)
 
     # -------------------
-    # Evaluation metrics
-    # -------------------
-    st.subheader(f"{model_choice} Evaluation Metrics")
-    st.markdown(f"**Accuracy:** `{accuracy_score(y_test, y_pred):.2f}`")
-    st.markdown(f"Classes: `{', '.join(le.classes_)}`")
-    report = classification_report(y_test, y_pred, target_names=le.classes_, output_dict=True)
-    st.dataframe(pd.DataFrame(report).transpose().round(2))
-
-    # -------------------
     # Feature importance
     # -------------------
     if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
@@ -461,123 +453,99 @@ elif page == "Prediction":
         perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
         importance = dict(zip(features, perm.importances_mean))
 
-    sorted_importance = sorted(importance.items(), key=lambda x: x[1], reverse=True)
-    fig_feat = px.bar(
-        x=[i[1] for i in sorted_importance],
-        y=[i[0] for i in sorted_importance],
-        orientation="h",
-        title=f"Feature Importance - {model_choice}"
-    )
-    fig_feat.update_layout(yaxis=dict(autorange="reversed"))
-    st.plotly_chart(fig_feat, use_container_width=True)
+    sorted_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)
 
-# -------------------
-# User Input Panel (Top 5 features)
-# -------------------
-st.subheader("Enter Your Details for Prediction")
+    # -------------------
+    # User input (top 5 features + essential categoricals)
+    # -------------------
+    st.subheader("Enter Your Details for Prediction")
+    user_inputs = {}
+    essential_cats = ["Gender", "BMI Category"]
+    if "Occupation" in categorical_cols:
+        essential_cats.append("Occupation")
 
-input_values = {}
-
-# Always include essential categorical features
-essential_cats = ["Gender", "BMI Category"]
-if "Occupation" in categorical_cols:
-    essential_cats.append("Occupation")
-
-# Determine numeric features from feature importance
-numeric_top = []
-added_cats = set()
-for feat, _ in sorted_importance:
-    base_cat = None
-    for cat in categorical_cols:
-        if feat.startswith(cat + "_"):
-            base_cat = cat
-            break
-    if base_cat:
-        if base_cat not in added_cats:
-            added_cats.add(base_cat)
-    else:
-        numeric_top.append(feat)
-    if len(numeric_top) >= 5:  # Limit numeric inputs to top 5
-        break
-
-# Final features to display
-final_inputs = essential_cats + numeric_top
-
-# Create widgets
-for f in final_inputs:
-    key = f"inp_{f}"
-
-    # Categorical features
-    if f == "Gender":
-        input_values[f] = st.selectbox("Gender", ["Male", "Female"], key=key)
-    elif f == "BMI Category":
-        input_values[f] = st.selectbox(
-            "BMI Category", ["Underweight", "Normal", "Overweight", "Obese"], key=key
-        )
-    elif f == "Occupation":
-        unique_occ = sorted(df_pred["Occupation"].dropna().unique())
-        input_values[f] = st.selectbox("Occupation", unique_occ, key=key)
-
-    # Numeric features with sliders (like old code)
-    else:
-        if f == "Age":
-            input_values[f] = st.slider("Age (years)", 18, 80, 30, key=key)
-        elif f == "Sleep Duration":
-            input_values[f] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0, key=key)
-        elif f == "Quality of Sleep":
-            input_values[f] = st.slider("Quality of Sleep (1-10)", 1, 10, 7, key=key)
-        elif f == "Physical Activity Level":
-            input_values[f] = st.slider("Physical Activity (min/day)", 0, 300, 30, key=key)
-        elif f == "Stress Level":
-            input_values[f] = st.slider("Stress Level (1-10)", 1, 10, 5, key=key)
-        elif f == "Heart Rate":
-            input_values[f] = st.slider("Heart Rate (bpm)", 40, 120, 70, key=key)
-        elif f == "Systolic":
-            input_values[f] = st.slider("Systolic BP (mmHg)", 90, 180, 120, key=key)
-        elif f == "Diastolic":
-            input_values[f] = st.slider("Diastolic BP (mmHg)", 60, 120, 80, key=key)
-        elif f == "Daily Steps":
-            input_values[f] = st.slider("Daily Steps", 0, 20000, 5000, key=key)
+    numeric_top5 = []
+    added_cats = set()
+    for f, _ in sorted_features:
+        base = None
+        for cat in categorical_cols:
+            if f.startswith(cat + "_"):
+                base = cat
+                break
+        if base:
+            if base not in added_cats:
+                added_cats.add(base)
         else:
-            # Generic numeric input if unknown feature
-            input_values[f] = st.number_input(f, min_value=0.0, max_value=300.0, value=0.0, key=key)
+            numeric_top5.append(f)
+        if len(numeric_top5) >= 5:
+            break
 
-# Convert user input to DataFrame
-input_df = pd.DataFrame([input_values])
+    final_inputs = essential_cats + numeric_top5
 
-# One-hot encode categorical inputs
-input_encoded = pd.get_dummies(
-    input_df,
-    columns=[c for c in categorical_cols if c in input_df.columns],
-    drop_first=True
-)
+    for f in final_inputs:
+        key = f"inp_{f}"
+        if f == "Gender":
+            user_inputs[f] = st.selectbox("Gender", ["Male", "Female"], key=key)
+        elif f == "BMI Category":
+            user_inputs[f] = st.selectbox(
+                "BMI Category", ["Underweight", "Normal", "Overweight", "Obese"], key=key
+            )
+        elif f == "Occupation":
+            user_inputs[f] = st.selectbox(
+                "Occupation", sorted(df_pred["Occupation"].dropna().unique()), key=key
+            )
+        else:
+            # Numeric sliders like old code
+            if f == "Age":
+                user_inputs[f] = st.slider("Age", 18, 80, 30, key=key)
+            elif f == "Sleep Duration":
+                user_inputs[f] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0, key=key)
+            elif f == "Quality of Sleep":
+                user_inputs[f] = st.slider("Quality of Sleep", 1, 10, 7, key=key)
+            elif f == "Physical Activity Level":
+                user_inputs[f] = st.slider("Physical Activity (min/day)", 0, 300, 30, key=key)
+            elif f == "Stress Level":
+                user_inputs[f] = st.slider("Stress Level", 1, 10, 5, key=key)
+            elif f == "Heart Rate":
+                user_inputs[f] = st.slider("Heart Rate (bpm)", 40, 120, 70, key=key)
+            elif f == "Systolic":
+                user_inputs[f] = st.slider("Systolic BP", 90, 180, 120, key=key)
+            elif f == "Diastolic":
+                user_inputs[f] = st.slider("Diastolic BP", 60, 120, 80, key=key)
+            elif f == "Daily Steps":
+                user_inputs[f] = st.slider("Daily Steps", 0, 20000, 5000, key=key)
+            else:
+                user_inputs[f] = st.number_input(f, min_value=0.0, max_value=300.0, value=0.0, key=key)
 
-# Ensure all model features exist
-for col in features:
-    if col not in input_encoded.columns:
-        input_encoded[col] = 0
+    # Convert to DataFrame
+    input_df = pd.DataFrame([user_inputs])
+    input_encoded = pd.get_dummies(input_df, columns=[c for c in categorical_cols if c in input_df.columns], drop_first=True)
 
-input_encoded = input_encoded[features]
+    # Fill missing columns with mean or 0
+    for col in features:
+        if col not in input_encoded.columns:
+            input_encoded[col] = df_encoded[col].mean() if col in numeric_cols else 0
+    input_encoded = input_encoded[features]
 
-# -------------------
-# Final Prediction Button
-# -------------------
-if st.button("\u2705 Predict Sleep Disorder"):
-    X_new = scaler.transform(input_encoded)
-    pred_class = le.inverse_transform(model.predict(X_new))[0]
+    # -------------------
+    # Prediction
+    # -------------------
+    if st.button("\u2705 Predict Sleep Disorder"):
+        X_new = scaler.transform(input_encoded)
+        pred_class = le.inverse_transform(model.predict(X_new))[0]
 
-    if pred_class == "None":
-        pred_class = "Normal Sleep"
+        if pred_class == "None":
+            pred_class = "Normal Sleep"
 
-    advice = {
-        "Normal Sleep": "Your sleep pattern looks healthy. Keep good habits.",
-        "Insomnia": "You may experience insomnia. Improve sleep hygiene and manage stress.",
-        "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation if symptoms persist."
-    }
+        advice = {
+            "Normal Sleep": "Your sleep pattern looks healthy.",
+            "Insomnia": "You may experience insomnia. Improve sleep hygiene.",
+            "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation."
+        }
 
-    st.subheader("\U0001F50E Prediction Result")
-    st.success(f"Sleep Disorder: **{pred_class}**")
-    st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
+        st.subheader("\U0001F50E Prediction Result")
+        st.success(f"Sleep Disorder: **{pred_class}**")
+        st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
 
 
 
