@@ -440,35 +440,30 @@ elif page == "Prediction":
                              key=lambda x: x[1], reverse=True)
 
     # -------------------
-    # User Input (Top 5 unique features)
-    # -------------------
-    st.subheader("Enter Your Details for Prediction")
-    user_inputs = {}
-
-    # -------------------
-# User Input 
+# User Input (Top 5 unique features, cached per model)
 # -------------------
 st.subheader("Enter Your Details for Prediction")
 user_inputs = {}
 
-# Cache top 5 numeric features once per session to avoid flicker
-if "numeric_top5" not in st.session_state:
-    numeric_top5 = []
+# Cache top 5 features per model choice
+cache_key = f"top5_{model_choice}"
+if cache_key not in st.session_state:
+    top5_features = []
     for f, _ in sorted_features:
-        # Skip categorical features and one-hot expansions
+        # Skip categorical one-hot and duplicates
         if f in categorical_cols or any(f.startswith(cat + "_") for cat in categorical_cols):
             continue
-        if f not in numeric_top5:
-            numeric_top5.append(f)
-        if len(numeric_top5) >= 5:
+        if f not in top5_features:
+            top5_features.append(f)
+        if len(top5_features) >= 5:
             break
-    st.session_state.numeric_top5 = numeric_top5
+    st.session_state[cache_key] = top5_features
 
-# Use the cached list
-numeric_top5 = st.session_state.numeric_top5
+# Use cached list for this model
+top5_features = st.session_state[cache_key]
 
 # Create widgets for those 5 features
-for f in numeric_top5:
+for f in top5_features:
     key = f"inp_{f}"
     if f == "Age":
         user_inputs[f] = st.slider("Age", 18, 80, 30, key=key)
@@ -484,6 +479,7 @@ for f in numeric_top5:
         mean_val = float(df_encoded[f].mean())
         user_inputs[f] = st.slider(f, min_val, max_val, mean_val, key=key)
 
+   
    
 
     # Convert to DataFrame
