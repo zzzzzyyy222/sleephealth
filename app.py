@@ -492,12 +492,20 @@ elif page == "Prediction":
     le = LabelEncoder()
     y = le.fit_transform(df_encoded["Sleep Disorder"])
 
+    # -------------------
+    # Outlier removal
+    # -------------------
+    z_scores = np.abs(zscore(df_encoded[numeric_cols]))
+    mask = (z_scores < 3).all(axis=1)
+    X_full = X_full[mask]
+    y = y[mask]
+
     # Scale features
     scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X_full)
+    X = scaler.fit_transform(X_full)
 
     # Train-test split
-    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     # -------------------
     # SMOTE
@@ -541,25 +549,22 @@ elif page == "Prediction":
         key="model_select"
     )
 
-    # -------------------
-    # Train model (cached)
-    # -------------------
-    @st.cache_data
-    def train_model(X_train, y_train, model_choice):
-        if model_choice == "Random Forest":
-            model = RandomForestClassifier(class_weight=None if balance else "balanced")
-        elif model_choice == "Logistic Regression":
-            model = LogisticRegression(max_iter=1000, class_weight=None if balance else "balanced")
-        elif model_choice == "SVM":
-            model = SVC(kernel="rbf", probability=True, class_weight=None if balance else "balanced")
-        elif model_choice == "Decision Tree":
-            model = DecisionTreeClassifier(class_weight=None if balance else "balanced")
-        elif model_choice == "XGBoost":
-            model = XGBClassifier(use_label_encoder=False, eval_metric="mlogloss")
-        model.fit(X_train, y_train)
-        return model
+    if model_choice == "Random Forest":
+        model = RandomForestClassifier(class_weight=None if balance else "balanced")
+    elif model_choice == "Logistic Regression":
+        model = LogisticRegression(max_iter=1000, class_weight=None if balance else "balanced")
+    elif model_choice == "SVM":
+        model = SVC(kernel="rbf", probability=True, class_weight=None if balance else "balanced")
+    elif model_choice == "Decision Tree":
+        model = DecisionTreeClassifier(class_weight=None if balance else "balanced")
+    elif model_choice == "XGBoost":
+        model = XGBClassifier(use_label_encoder=False, eval_metric="mlogloss")
 
-    model = train_model(X_train, y_train, model_choice)
+    # -------------------
+    # Train model
+    # -------------------
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
 
     # -------------------
     # Feature importance
@@ -572,62 +577,35 @@ elif page == "Prediction":
         perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
         importance = dict(zip(features, perm.importances_mean))
 
-    # Keep only features with importance > 0
-    important_features = [f for f, val in importance.items() if val > 0]
+    # Keep only numeric features with non-zero importance
+    important_features = [f for f, val in importance.items() if val > 0 and f in numeric_cols]
     sorted_features = sorted([(f, importance[f]) for f in important_features], key=lambda x: x[1], reverse=True)
 
     # -------------------
-    # User inputs (numeric top 5)
+    # User Input Panel
     # -------------------
     st.subheader("Enter Your Details for Prediction")
     user_inputs = {}
-
-    numeric_top5 = []
-    for f, _ in sorted_features:
-        if any(f.startswith(cat + "_") for cat in categorical_cols):
-            continue  # skip categorical
-        numeric_top5.append(f)
-        if len(numeric_top5) >= 5:
-            break
+    numeric_top5 = [f for f, _ in sorted_features][:5]  # top 5 numeric features
 
     for f in numeric_top5:
         key = f"inp_{f}"
-        if f == "Age":
-            user_inputs[f] = st.slider("Age", 18, 80, 30, key=key)
-        elif f == "Sleep Duration":
-            user_inputs[f] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0, key=key)
-        elif f == "Quality of Sleep":
-            user_inputs[f] = st.slider("Quality of Sleep (1-10)", 1, 10, 7, key=key)
-        elif f == "Physical Activity Level":
-            user_inputs[f] = st.slider("Physical Activity (min/day)", 0, 300, 30, key=key)
-        elif f == "Stress Level":
-            user_inputs[f] = st.slider("Stress Level (1-10)", 1, 10, 5, key=key)
-        elif f == "Heart Rate":
-            user_inputs[f] = st.slider("Heart Rate (bpm)", 40, 120, 70, key=key)
-        elif f == "Systolic":
-            user_inputs[f] = st.slider("Systolic BP", 90, 180, 120, key=key)
-        elif f == "Diastolic":
-            user_inputs[f] = st.slider("Diastolic BP", 60, 120, 80, key=key)
-        elif f == "Daily Steps":
-            user_inputs[f] = st.slider("Daily Steps", 0, 20000, 5000, key=key)
-        else:
-            min_val = float(df_encoded[f].min())
-            max_val = float(df_encoded[f].max())
-            mean_val = float(df_encoded[f].mean())
-            user_inputs[f] = st.slider(f, min_val, max_val, mean_val, key=key)
+        min_val = float(df_encoded[f].min())
+        max_val = float(df_encoded[f].max())
+        mean_val = float(df_encoded[f].mean())
+        user_inputs[f] = st.slider(f, min_val, max_val, mean_val, key=key)
 
-    # Convert to DataFrame
     input_df = pd.DataFrame([user_inputs])
     input_encoded = input_df[numeric_top5]
 
-    # Fill remaining model features
+    # Ensure all model features exist
     for col in features:
         if col not in input_encoded.columns:
             input_encoded[col] = df_encoded[col].mean() if col in numeric_cols else 0
     input_encoded = input_encoded[features]
 
     # -------------------
-    # Prediction button
+    # Prediction
     # -------------------
     if st.button("\u2705 Predict Sleep Disorder", key="predict_btn"):
         X_new = scaler.transform(input_encoded)
@@ -638,12 +616,14 @@ elif page == "Prediction":
 
         advice = {
             "Normal Sleep": "Your sleep pattern looks healthy.",
-            "Insomnia": "You may experience insomnia. Establish a consistent sleep schedule, make your bedroom dark, quiet, and cool, and avoid stimulants close to bedtime. Regular exercise during the day is helpful, but avoid intense workouts near bedtime.",
-            "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation. Lifestyle changes may help, e.g., losing weight, exercising, avoiding alcohol and sedatives, sleeping on your side."
+            "Insomnia": "You may experience insomnia. Establish a consistent sleep schedule and improve sleep hygiene.",
+            "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation and consider lifestyle changes."
         }
 
         st.subheader("\U0001F50E Prediction Result")
         st.success(f"Sleep Disorder: **{pred_class}**")
+        st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
+
         st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
 
 
