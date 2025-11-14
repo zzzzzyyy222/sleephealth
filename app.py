@@ -342,40 +342,53 @@ elif page == "Prediction":
     # -------------------
     df_pred = df.copy()
     df_pred["Sleep Disorder"] = df_pred["Sleep Disorder"].fillna("None")
-    df_pred = df_pred.drop(columns=["Person ID"])
 
-    # Split Blood Pressure if exists
+    # Remove Person ID if exists
+    if "Person ID" in df_pred.columns:
+        df_pred = df_pred.drop(columns=["Person ID"])
+
+    # Split Blood Pressure into 2 columns
     if "Blood Pressure" in df_pred.columns:
-        bp_split = df_pred["Blood Pressure"].str.split("/", expand=True).astype(float)
-        df_pred["Systolic"] = bp_split[0]
-        df_pred["Diastolic"] = bp_split[1]
+        bp_split = df_pred["Blood Pressure"].str.split("/", expand=True)
+        df_pred["Systolic"] = bp_split[0].astype(float)
+        df_pred["Diastolic"] = bp_split[1].astype(float)
         df_pred = df_pred.drop(columns=["Blood Pressure"])
 
-    # Categorical columns (no occupation)
+    # Categorical columns
     categorical_cols = ["Gender", "BMI Category"]
+
+    # One-hot encode (Sleep Disorder excluded!)
     df_encoded = pd.get_dummies(df_pred, columns=categorical_cols, drop_first=True)
 
-    # Fill numeric NaNs before scaling
+    # Fill numeric NaNs
     numeric_cols = df_encoded.select_dtypes(include=[np.number]).columns.tolist()
     df_encoded[numeric_cols] = df_encoded[numeric_cols].fillna(df_encoded[numeric_cols].mean())
 
-    # Features and target
+    # -------------------
+    # Separate features & target
+    # -------------------
     features = [col for col in df_encoded.columns if col != "Sleep Disorder"]
-    X_full = df_encoded[features].values.astype(float)
+    X_full = df_encoded[features].astype(float).values
+
     le = LabelEncoder()
     y = le.fit_transform(df_encoded["Sleep Disorder"])
 
-    # Remove outliers
+    # -------------------
+    # Outlier handling
+    # -------------------
     z_scores = np.abs(zscore(df_encoded[numeric_cols]))
     mask = (z_scores < 3).all(axis=1)
+
     X_full = X_full[mask]
     y = y[mask]
 
-    # Scale features
+    # -------------------
+    # Scaling
+    # -------------------
     scaler = StandardScaler()
     X = scaler.fit_transform(X_full)
 
-    # Train-test split
+    # Train / Test split
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
@@ -395,27 +408,27 @@ elif page == "Prediction":
     else:
         st.info("Oversampling not applied.")
 
+    # Show SMOTE visualization
     if balance:
         y_after_counts = Counter(y_train)
         df_balance = pd.DataFrame({
             "Class": list(le.classes_) * 2,
             "Count": [y_before_counts.get(i, 0) for i in range(len(le.classes_))] +
-                     [y_after_counts.get(i, 0) for i in range(len(le.classes_))],
+                    [y_after_counts.get(i, 0) for i in range(len(le.classes_))],
             "Stage": ["Before SMOTE"] * len(le.classes_) +
                      ["After SMOTE"] * len(le.classes_)
         })
+
         fig_balance = px.bar(
             df_balance,
             x="Class", y="Count", color="Stage",
             barmode="group",
-            title="Class Distribution Before and After SMOTE",
-            color_discrete_map={"Before SMOTE": "#62C3A5", "After SMOTE": "#F78364"}
+            title="Class Distribution Before and After SMOTE"
         )
-        fig_balance.update_layout(xaxis_title="Class", yaxis_title="Count", title_x=0.3)
         st.plotly_chart(fig_balance, use_container_width=True)
 
     # -------------------
-    # Model selection
+    # Model Selection
     # -------------------
     st.subheader("Choose Model")
     model_choice = st.selectbox(
@@ -444,9 +457,6 @@ elif page == "Prediction":
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
-    # -------------------
-    # Evaluation metrics
-    # -------------------
     report_dict = classification_report(
         y_test, y_pred, target_names=le.classes_, output_dict=True
     )
@@ -456,7 +466,7 @@ elif page == "Prediction":
     st.markdown(f"- **Accuracy:** `{accuracy_score(y_test, y_pred):.2f}`")
     st.markdown(f"- **Classes:** `{', '.join(le.classes_)}`")
 
-    with st.expander("\U0001F4D8 Classification Report"):
+    with st.expander("📘 Classification Report"):
         st.dataframe(report_df)
 
     # -------------------
@@ -478,24 +488,21 @@ elif page == "Prediction":
         x=[f[1] for f in sorted_features],
         y=[f[0] for f in sorted_features],
         orientation='h',
-        color=[f[1] for f in sorted_features],
-        color_continuous_scale='RdBu',
-        title=f"Feature Importance for {model_choice}",
-        labels={'x': 'Importance', 'y': 'Feature'}
+        title=f"Feature Importance for {model_choice}"
     )
     fig_features.update_layout(yaxis=dict(autorange="reversed"))
     st.plotly_chart(fig_features, use_container_width=True)
 
     # -------------------
-    # User input based on feature importance
+    # User Input for Prediction
     # -------------------
     st.subheader("Enter your details for prediction")
-    input_widgets = {}
 
-    # Always include these
     top_features = [f[0] for f in sorted_features[:6]]
     user_features = ["Gender", "BMI Category"] + top_features
-    user_features = list(dict.fromkeys(user_features))  # remove duplicates
+    user_features = list(dict.fromkeys(user_features))
+
+    input_widgets = {}
 
     for feature in user_features:
         key = f"input_{feature}"
@@ -510,53 +517,38 @@ elif page == "Prediction":
 
         else:
             # Numeric sliders
-            if feature == "Age":
-                input_widgets[feature] = st.slider("Age (years)", 18, 80, 25, key=key)
+            limits = {
+                "Age": (18, 80, 25),
+                "Sleep Duration": (0.0, 12.0, 7.0),
+                "Quality of Sleep": (1, 10, 7),
+                "Stress Level": (1, 10, 5),
+                "Physical Activity Level": (0, 300, 30),
+                "Heart Rate": (40, 120, 70),
+                "Daily Steps": (0, 20000, 5000),
+                "Systolic": (90, 180, 120),
+                "Diastolic": (60, 120, 80)
+            }
 
-            elif feature == "Sleep Duration":
-                input_widgets[feature] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0, key=key)
-
-            elif feature == "Quality of Sleep":
-                input_widgets[feature] = st.slider("Sleep Quality (1-10)", 1, 10, 7, key=key)
-
-            elif feature == "Physical Activity Level":
-                input_widgets[feature] = st.slider("Physical Activity Level (minutes/day)", 0, 300, 30, key=key)
-
-            elif feature == "Stress Level":
-                input_widgets[feature] = st.slider("Stress Level (1-10)", 1, 10, 5, key=key)
-
-            elif feature == "Heart Rate":
-                input_widgets[feature] = st.slider("Heart Rate (bpm)", 40, 120, 70, key=key)
-
-            elif feature == "Systolic":
-                input_widgets[feature] = st.slider("Systolic BP (mmHg)", 90, 180, 120, key=key)
-
-            elif feature == "Diastolic":
-                input_widgets[feature] = st.slider("Diastolic BP (mmHg)", 60, 120, 80, key=key)
-
-            elif feature == "Daily Steps":
-                input_widgets[feature] = st.slider("Daily Steps", 0, 20000, 5000, key=key)
-
+            if feature in limits:
+                mn, mx, default = limits[feature]
+                input_widgets[feature] = st.slider(feature, mn, mx, default, key=key)
             else:
                 input_widgets[feature] = st.slider(feature, 0, 100, 0, key=key)
 
     input_df = pd.DataFrame([input_widgets])
 
-    # Encode categorical
-    present_categoricals = [col for col in categorical_cols if col in input_df.columns]
-    input_encoded = pd.get_dummies(input_df, columns=present_categoricals, drop_first=True)
+    # Encode input
+    input_encoded = pd.get_dummies(input_df, columns=categorical_cols, drop_first=True)
 
-    # Ensure all model-required columns exist
+    # Ensure all training feature columns exist
     for col in features:
         if col not in input_encoded.columns:
             input_encoded[col] = 0
 
     input_encoded = input_encoded[features]
 
-    # -------------------
     # Prediction
-    # -------------------
-    if st.button("\u2705 Predict Sleep Disorder", key="predict_button"):
+    if st.button("✔ Predict Sleep Disorder", key="predict_button"):
         input_scaled = scaler.transform(input_encoded)
         pred_encoded = model.predict(input_scaled)[0]
         prediction = le.inverse_transform([pred_encoded])[0]
@@ -565,14 +557,13 @@ elif page == "Prediction":
             prediction = "Normal Sleep"
 
         advice = {
-            "Normal Sleep": "Your sleep pattern looks healthy. Keep maintaining good habits.",
-            "Insomnia": "You may be experiencing insomnia. Improve sleep hygiene and manage stress.",
-            "Sleep Apnea": "Possible sleep apnea. Consider medical evaluation if symptoms continue."
+            "Normal Sleep": "Your sleep pattern looks healthy.",
+            "Insomnia": "You may be experiencing insomnia. Improve sleep habits.",
+            "Sleep Apnea": "Possible sleep apnea. Consider a medical evaluation."
         }
 
-        st.subheader("\U0001F50E Prediction Result")
-        st.success(f"Predicted Sleep Disorder: {prediction}")
-        st.markdown(f"\U0001F4A1 **Recommendation:** {advice.get(prediction, 'No advice available.')}")
-
+        st.subheader("🔍 Prediction Result")
+        st.success(f"Predicted Sleep Disorder: **{prediction}**")
+        st.markdown(f"💡 **Recommendation:** {advice.get(prediction)}")
 
 
