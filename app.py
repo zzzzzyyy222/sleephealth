@@ -534,9 +534,9 @@ elif page == "Prediction":
             max_val = float(df_encoded[f].max())
             val = st.slider(f, min_val, max_val, st.session_state[key], key=key)
 
-        st.session_state[key] = val
-        user_inputs[f] = val
-
+               st.session_state[key] = val
+               user_inputs[f] = val
+  
 
 # Convert to DataFrame
 input_df = pd.DataFrame([user_inputs])
