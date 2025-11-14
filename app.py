@@ -457,6 +457,129 @@ elif page == "Prediction":
     important_features = [f for f, val in importance.items() if val > 0]
     sorted_features = sorted([(f, importance[f]) for f in important_features], key=lambda x: x[1], reverse=True)
 
+elif page == "Prediction":
+    st.title("\U0001F52E Sleep Disorder Prediction")
+
+    # -------------------
+    # Data preparation
+    # -------------------
+    df_pred = df.copy()
+    df_pred["Sleep Disorder"] = df_pred["Sleep Disorder"].fillna("None")
+    df_pred = df_pred.drop(columns=[c for c in ["Person ID", "ID"] if c in df_pred.columns], errors="ignore")
+
+    # Split Blood Pressure
+    if "Blood Pressure" in df_pred.columns:
+        bp_split = df_pred["Blood Pressure"].str.split("/", expand=True)
+        df_pred["Systolic"] = pd.to_numeric(bp_split[0], errors="coerce")
+        df_pred["Diastolic"] = pd.to_numeric(bp_split[1], errors="coerce")
+        df_pred = df_pred.drop(columns=["Blood Pressure"])
+
+    # Categorical columns
+    categorical_cols = ["Gender", "BMI Category"]
+    if "Occupation" in df_pred.columns:
+        categorical_cols.append("Occupation")
+
+    # One-hot encoding
+    df_encoded = pd.get_dummies(df_pred, columns=categorical_cols, drop_first=True)
+
+    # Fill numeric NaNs
+    numeric_cols = df_encoded.select_dtypes(include=[np.number]).columns.tolist()
+    df_encoded[numeric_cols] = df_encoded[numeric_cols].fillna(df_encoded[numeric_cols].mean())
+
+    # Features & target
+    features = [c for c in df_encoded.columns if c != "Sleep Disorder"]
+    X_full = df_encoded[features].astype(float).values
+    le = LabelEncoder()
+    y = le.fit_transform(df_encoded["Sleep Disorder"])
+
+    # -------------------
+    # Outlier removal
+    # -------------------
+    z_scores = np.abs(zscore(df_encoded[numeric_cols]))
+    mask = (z_scores < 3).all(axis=1)
+    X_full = X_full[mask]
+    y = y[mask]
+
+    # Scale features
+    scaler = StandardScaler()
+    X = scaler.fit_transform(X_full)
+
+    # Train-test split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # -------------------
+    # SMOTE
+    # -------------------
+    st.subheader("\U0001F4CA Class Balancing (SMOTE Option)")
+    balance = st.checkbox("Apply SMOTE Oversampling", value=True)
+    y_before_counts = Counter(y_train)
+
+    if balance:
+        smote = SMOTE(random_state=42)
+        X_train, y_train = smote.fit_resample(X_train, y_train)
+        st.info("SMOTE applied!")
+    else:
+        st.info("SMOTE not applied.")
+
+    if balance:
+        y_after_counts = Counter(y_train)
+        df_balance = pd.DataFrame({
+            "Class": list(le.classes_) * 2,
+            "Count": [y_before_counts.get(i, 0) for i in range(len(le.classes_))] +
+                     [y_after_counts.get(i, 0) for i in range(len(le.classes_))],
+            "Stage": ["Before SMOTE"] * len(le.classes_) +
+                     ["After SMOTE"] * len(le.classes_)
+        })
+        fig_balance = px.bar(
+            df_balance, x="Class", y="Count", color="Stage",
+            barmode="group",
+            title="Class Distribution Before and After SMOTE",
+            color_discrete_map={"Before SMOTE": "#62C3A5", "After SMOTE": "#F78364"}
+        )
+        fig_balance.update_layout(xaxis_title="Class", yaxis_title="Count", title_x=0.3)
+        st.plotly_chart(fig_balance, use_container_width=True)
+
+    # -------------------
+    # Model selection
+    # -------------------
+    st.subheader("Choose Model")
+    model_choice = st.selectbox(
+        "Select Model",
+        ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"]
+    )
+
+    if model_choice == "Random Forest":
+        model = RandomForestClassifier(class_weight=None if balance else "balanced")
+    elif model_choice == "Logistic Regression":
+        model = LogisticRegression(max_iter=1000, class_weight=None if balance else "balanced")
+    elif model_choice == "SVM":
+        model = SVC(kernel="rbf", probability=True, class_weight=None if balance else "balanced")
+    elif model_choice == "Decision Tree":
+        model = DecisionTreeClassifier(class_weight=None if balance else "balanced")
+    elif model_choice == "XGBoost":
+        model = XGBClassifier(use_label_encoder=False, eval_metric="mlogloss")
+
+    # -------------------
+    # Train model
+    # -------------------
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+
+    # -------------------
+    # Feature importance
+    # -------------------
+    if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
+        importance = dict(zip(features, model.feature_importances_))
+    elif model_choice == "Logistic Regression":
+        importance = dict(zip(features, abs(model.coef_[0])))
+    else:  # SVM
+        perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
+        importance = dict(zip(features, perm.importances_mean))
+
+    # Keep only non-zero importance features
+    important_features = [f for f, val in importance.items() if val > 0]
+    sorted_features = sorted([(f, importance[f]) for f in important_features], key=lambda x: x[1], reverse=True)
+
 # -------------------
 # User Input 
 # -------------------
@@ -513,6 +636,26 @@ for col in features:
         input_encoded[col] = df_encoded[col].mean() if col in numeric_cols else 0
 
 input_encoded = input_encoded[features]
+
+# -------------------
+# Prediction
+# -------------------
+if st.button("\u2705 Predict Sleep Disorder"):
+    X_new = scaler.transform(input_encoded)
+    pred_class = le.inverse_transform(model.predict(X_new))[0]
+
+    if pred_class == "None":
+        pred_class = "Normal Sleep"
+
+    advice = {
+        "Normal Sleep": "Your sleep pattern looks healthy.",
+        "Insomnia": "You may experience insomnia. Establish a consistent sleep schedule, make your bedroom dark, quiet, and cool, and avoid stimulants like caffeine and nicotine close to bedtime. Regular exercise during the day is helpful, but avoid intense workouts near bedtime. If you can't sleep after about 20 minutes, get out of bed and do a relaxing activity until you feel sleepy again. ",
+        "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation. try lifestyle changes like losing weight, exercising, avoiding alcohol and sedatives, and sleeping on your side instead of your back."
+    }
+
+    st.subheader("\U0001F50E Prediction Result")
+    st.success(f"Sleep Disorder: **{pred_class}**")
+    st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
 
 # -------------------
 # Prediction
