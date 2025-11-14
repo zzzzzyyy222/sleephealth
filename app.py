@@ -471,65 +471,112 @@ elif page == "Prediction":
     fig_feat.update_layout(yaxis=dict(autorange="reversed"))
     st.plotly_chart(fig_feat, use_container_width=True)
 
-    # -------------------
-    # User Input Panel (5 features)
-    # -------------------
-    st.subheader("Enter Your Details for Prediction")
-    input_values = {}
-    essential_cats = ["Gender", "BMI Category"]
-    if "Occupation" in categorical_cols:
-        essential_cats.append("Occupation")
+# -------------------
+# User Input Panel
+# -------------------
+st.subheader("Enter Your Details for Prediction")
 
-    numeric_top = []
-    added_cats = set()
-    for feat, _ in sorted_importance:
-        base = next((c for c in categorical_cols if feat.startswith(c + "_")), None)
-        if base:
-            if base not in added_cats:
-                added_cats.add(base)
-        else:
-            numeric_top.append(feat)
-        if len(numeric_top) >= 3:  # 5 inputs total: 2 essential + 3 numeric
+input_values = {}
+
+# Essential categorical features (always shown)
+essential_cats = ["Gender", "BMI Category"]
+if "Occupation" in categorical_cols:
+    essential_cats.append("Occupation")
+
+# Track numeric features from feature importance
+numeric_top = []
+added_cats = set()
+
+for feat, _ in sorted_importance:
+    base = None
+    for cat in categorical_cols:
+        if feat.startswith(cat + "_"):
+            base = cat
             break
 
-    final_inputs = essential_cats[:2] + numeric_top[:3]
+    if base:
+        if base not in added_cats:
+            added_cats.add(base)
+    else:
+        numeric_top.append(feat)
 
-    for f in final_inputs:
-        key = f"inp_{f}"
-        if f == "Gender":
-            input_values[f] = st.selectbox("Gender", ["Male", "Female"], key=key)
-        elif f == "BMI Category":
-            input_values[f] = st.selectbox("BMI Category",
-                                           ["Underweight", "Normal", "Overweight", "Obese"], key=key)
-        elif f == "Occupation":
-            input_values[f] = st.selectbox("Occupation", sorted(df_pred["Occupation"].dropna().unique()), key=key)
+    # Stop when we have 5 inputs total including essential categoricals
+    if len(numeric_top) + len(essential_cats) >= 5:
+        break
+
+final_inputs = essential_cats + numeric_top[: 5 - len(essential_cats)]
+
+# Generate input widgets
+for f in final_inputs:
+    key = f"inp_{f}"
+
+    # Categorical widgets
+    if f == "Gender":
+        input_values[f] = st.selectbox("Gender", ["Male", "Female"], key=key)
+    elif f == "BMI Category":
+        input_values[f] = st.selectbox(
+            "BMI Category", ["Underweight", "Normal", "Overweight", "Obese"], key=key
+        )
+    elif f == "Occupation":
+        input_values[f] = st.selectbox(
+            "Occupation", sorted(df_pred["Occupation"].dropna().unique()), key=key
+        )
+    else:
+        # Numeric sliders
+        if f == "Age":
+            input_values[f] = st.slider("Age (years)", 18, 80, 25, key=key)
+        elif f == "Sleep Duration":
+            input_values[f] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0, key=key)
+        elif f == "Quality of Sleep":
+            input_values[f] = st.slider("Sleep Quality (1-10)", 1, 10, 7, key=key)
+        elif f == "Physical Activity Level":
+            input_values[f] = st.slider("Physical Activity Level (min/day)", 0, 300, 30, key=key)
+        elif f == "Stress Level":
+            input_values[f] = st.slider("Stress Level (1-10)", 1, 10, 5, key=key)
+        elif f == "Heart Rate":
+            input_values[f] = st.slider("Heart Rate (bpm)", 40, 120, 70, key=key)
+        elif f == "Systolic":
+            input_values[f] = st.slider("Systolic BP (mmHg)", 90, 180, 120, key=key)
+        elif f == "Diastolic":
+            input_values[f] = st.slider("Diastolic BP (mmHg)", 60, 120, 80, key=key)
+        elif f == "Daily Steps":
+            input_values[f] = st.slider("Daily Steps", 0, 20000, 5000, key=key)
         else:
-            input_values[f] = st.number_input(f, min_value=0.0, max_value=300.0, value=50.0, key=key)
+            input_values[f] = st.slider(f, 0, 100, 0, key=key)
 
-    input_df = pd.DataFrame([input_values])
-    input_encoded = pd.get_dummies(input_df, columns=[c for c in categorical_cols if c in input_df.columns],
-                                   drop_first=True)
-    for col in features:
-        if col not in input_encoded.columns:
-            input_encoded[col] = 0
-    input_encoded = input_encoded[features]
+# Convert input to DataFrame
+input_df = pd.DataFrame([input_values])
 
-    # -------------------
-    # Final Prediction
-    # -------------------
-    if st.button("\u2705 Predict Sleep Disorder"):
-        X_new = scaler.transform(input_encoded)
-        pred_class = le.inverse_transform(model.predict(X_new))[0]
-        if pred_class == "None":
-            pred_class = "Normal Sleep"
+# One-hot encode categorical inputs
+input_encoded = pd.get_dummies(
+    input_df, columns=[c for c in categorical_cols if c in input_df.columns], drop_first=True
+)
 
-        advice = {
-            "Normal Sleep": "Your sleep pattern looks healthy.",
-            "Insomnia": "You may experience insomnia. Improve sleep hygiene.",
-            "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation."
-        }
+# Ensure all model features exist
+for col in features:
+    if col not in input_encoded.columns:
+        input_encoded[col] = 0
 
-        st.subheader("\U0001F50E Prediction Result")
-        st.success(f"Sleep Disorder: **{pred_class}**")
-        st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
+input_encoded = input_encoded[features]
+
+# -------------------
+# Final Prediction
+# -------------------
+if st.button("\u2705 Predict Sleep Disorder"):
+    X_new = scaler.transform(input_encoded)
+    pred_class = le.inverse_transform(model.predict(X_new))[0]
+
+    if pred_class == "None":
+        pred_class = "Normal Sleep"
+
+    advice = {
+        "Normal Sleep": "Your sleep pattern looks healthy. Keep maintaining good habits.",
+        "Insomnia": "You may experience insomnia. Improve sleep hygiene and manage stress.",
+        "Sleep Apnea": "Possible sleep apnea. Consider medical evaluation if symptoms continue."
+    }
+
+    st.subheader("\U0001F50E Prediction Result")
+    st.success(f"Sleep Disorder: **{pred_class}**")
+    st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
+
 
