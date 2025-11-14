@@ -508,10 +508,10 @@ elif page == "Prediction":
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     # -------------------
-    # SMOTE
+    # SMOTE option
     # -------------------
     st.subheader("\U0001F4CA Class Balancing (SMOTE Option)")
-    balance = st.checkbox("Apply SMOTE Oversampling", value=True)
+    balance = st.checkbox("Apply SMOTE Oversampling", value=True, key="smote_checkbox")
     y_before_counts = Counter(y_train)
 
     if balance:
@@ -521,6 +521,7 @@ elif page == "Prediction":
     else:
         st.info("SMOTE not applied.")
 
+    # Optional SMOTE distribution chart
     if balance:
         y_after_counts = Counter(y_train)
         df_balance = pd.DataFrame({
@@ -577,21 +578,26 @@ elif page == "Prediction":
         perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
         importance = dict(zip(features, perm.importances_mean))
 
-    # Keep only features with importance > 0
-    sorted_features = sorted([(f, v) for f, v in importance.items() if v > 0], key=lambda x: x[1], reverse=True)
+    # Keep only features with non-zero importance
+    important_features = [f for f, val in importance.items() if val > 0]
+    sorted_features = sorted([(f, importance[f]) for f in important_features], key=lambda x: x[1], reverse=True)
 
     # -------------------
-    # User Input (top numeric features)
+    # User input
     # -------------------
     st.subheader("Enter Your Details for Prediction")
     user_inputs = {}
     numeric_top5 = []
+
     for f, _ in sorted_features:
-        if f in numeric_cols:  # only numeric
-            numeric_top5.append(f)
-        if len(numeric_top5) >= 5:
+        # skip categorical
+        if any(f == cat or f.startswith(cat + "_") for cat in categorical_cols):
+            continue
+        numeric_top5.append(f)
+        if len(numeric_top5) >= 5:  # top 5 numeric features
             break
 
+    # Create sliders for numeric top features
     for f in numeric_top5:
         key = f"userinput_{f}"
         if f == "Age":
@@ -613,11 +619,15 @@ elif page == "Prediction":
         elif f == "Daily Steps":
             user_inputs[f] = st.slider("Daily Steps", 0, 20000, 5000, key=key)
         else:
-            min_val, max_val, mean_val = df_encoded[f].min(), df_encoded[f].max(), df_encoded[f].mean()
-            user_inputs[f] = st.slider(f, float(min_val), float(max_val), float(mean_val), key=key)
+            min_val = float(df_encoded[f].min())
+            max_val = float(df_encoded[f].max())
+            mean_val = float(df_encoded[f].mean())
+            user_inputs[f] = st.slider(f, min_val, max_val, mean_val, key=key)
 
     input_df = pd.DataFrame([user_inputs])
-    input_encoded = input_df.copy()
+    input_encoded = input_df[numeric_top5]
+
+    # Ensure all model features exist
     for col in features:
         if col not in input_encoded.columns:
             input_encoded[col] = df_encoded[col].mean() if col in numeric_cols else 0
@@ -635,10 +645,11 @@ elif page == "Prediction":
 
         advice = {
             "Normal Sleep": "Your sleep pattern looks healthy.",
-            "Insomnia": "You may experience insomnia. Improve sleep hygiene.",
-            "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation."
+            "Insomnia": "You may experience insomnia. Establish a consistent sleep schedule, improve sleep hygiene, and manage stress.",
+            "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation and consider lifestyle adjustments like weight management, exercise, and sleep position."
         }
 
         st.subheader("\U0001F50E Prediction Result")
         st.success(f"Sleep Disorder: **{pred_class}**")
         st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
+
