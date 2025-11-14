@@ -436,47 +436,56 @@ elif page == "Prediction":
     sorted_features = sorted([(f, importance[f]) for f in important_features],
                              key=lambda x: x[1], reverse=True)
 
+    # Stable Top Features
     # -------------------
-    # Stable TOP 5 numeric features
-    # -------------------
-    numeric_ranked = []
-    for f, _ in sorted_features:
-        if any(f == cat or f.startswith(cat + "_") for cat in categorical_cols):
-            continue
-        numeric_ranked.append(f)
-
-    # Store only once per session to avoid widget re-creation
     if "numeric_top5" not in st.session_state:
-        st.session_state.numeric_top5 = numeric_ranked[:5]
+        numeric_top5 = []
+        for f, _ in sorted_features:
+            # Skip categorical features
+            if any(f == cat or f.startswith(cat + "_") for cat in categorical_cols):
+                continue
+            numeric_top5.append(f)
+            if len(numeric_top5) >= 5:
+                break
+        st.session_state["numeric_top5"] = numeric_top5
 
-    numeric_top5 = st.session_state.numeric_top5
+    numeric_top5 = st.session_state["numeric_top5"]
 
 
-    # -------------------
-    # User inputs (Top 5 numeric)
+    # User Input 
     # -------------------
     st.subheader("Enter Your Details for Prediction")
     user_inputs = {}
 
-    numeric_top5 = [f for f, _ in sorted_features][:5]
+    # Use the stable numeric_top5 from session_state
+    numeric_top5 = st.session_state["numeric_top5"]
 
-    for idx, f in enumerate(numeric_top5):
-        key = f"{model_choice}_input_{idx}_{f}"
-        min_val = float(df_encoded[f].min())
-        max_val = float(df_encoded[f].max())
-        mean_val = float(df_encoded[f].mean())
-        user_inputs[f] = st.slider(f, min_val, max_val, mean_val, key=key)
-
-    input_df = pd.DataFrame([user_inputs])
-    input_encoded = input_df[numeric_top5]
-
-    # Fill missing model features
-    for col in features:
-        if col not in input_encoded.columns:
-            input_encoded[col] = df_encoded[col].mean() if col in numeric_cols else 0
-
-    input_encoded = input_encoded[features]
-
+    # Create widgets for top numeric features
+    for f in numeric_top5:
+        key = f"inp_{f}"  # stable key per feature
+        if f == "Age":
+            user_inputs[f] = st.slider("Age", 18, 80, 30, key=key)
+        elif f == "Sleep Duration":
+            user_inputs[f] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0, key=key)
+        elif f == "Quality of Sleep":
+            user_inputs[f] = st.slider("Quality of Sleep (low to high)", 1, 10, 7, key=key)
+        elif f == "Physical Activity Level":
+           user_inputs[f] = st.slider("Physical Activity (min per day)", 0, 300, 30, key=key)
+        elif f == "Stress Level":
+           user_inputs[f] = st.slider("Stress Level (low to high)", 1, 10, 5, key=key)
+        elif f == "Heart Rate":
+           user_inputs[f] = st.slider("Heart Rate (bpm)", 40, 120, 70, key=key)
+        elif f == "Systolic":
+           user_inputs[f] = st.slider("Systolic BP", 90, 180, 120, key=key)
+        elif f == "Diastolic":
+           user_inputs[f] = st.slider("Diastolic BP", 60, 120, 80, key=key)
+        elif f == "Daily Steps":
+           user_inputs[f] = st.slider("Daily Steps", 0, 20000, 5000, key=key)
+        else:
+           min_val = float(df_encoded[f].min())
+           max_val = float(df_encoded[f].max())
+           mean_val = float(df_encoded[f].mean())
+           user_inputs[f] = st.slider(f, min_val, max_val, mean_val, key=key)
     # -------------------
     # Prediction
     # -------------------
