@@ -510,32 +510,32 @@ for f in numeric_top5:
 for idx, f in enumerate(numeric_top5):
     key = f"inp_{f}"
 
-    # Map specific sliders
+    # Use .get() to provide default value if not in session_state
+    default_val = st.session_state.get(key, 0)
+
     if f == "Age":
-        val = st.slider("Age", 18, 80, st.session_state[key], key=key)
+        user_inputs[f] = st.slider("Age", 18, 80, default_val, key=key)
     elif f == "Sleep Duration":
-        val = st.slider("Sleep Duration (hours)", 0.0, 12.0, st.session_state[key], key=key)
+        user_inputs[f] = st.slider("Sleep Duration (hours)", 0.0, 12.0, default_val, key=key)
     elif f == "Quality of Sleep":
-        val = st.slider("Quality of Sleep (low to high)", 1, 10, st.session_state[key], key=key)
+        user_inputs[f] = st.slider("Quality of Sleep (low to high)", 1, 10, default_val, key=key)
     elif f == "Physical Activity Level":
-        val = st.slider("Physical Activity (min per day)", 0, 300, st.session_state[key], key=key)
+        user_inputs[f] = st.slider("Physical Activity (min per day)", 0, 300, default_val, key=key)
     elif f == "Stress Level":
-        val = st.slider("Stress Level (low to high)", 1, 10, st.session_state[key], key=key)
+        user_inputs[f] = st.slider("Stress Level (low to high)", 1, 10, default_val, key=key)
     elif f == "Heart Rate":
-        val = st.slider("Heart Rate (bpm)", 40, 120, st.session_state[key], key=key)
+        user_inputs[f] = st.slider("Heart Rate (bpm)", 40, 120, default_val, key=key)
     elif f == "Systolic":
-        val = st.slider("Systolic BP", 90, 180, st.session_state[key], key=key)
+        user_inputs[f] = st.slider("Systolic BP", 90, 180, default_val, key=key)
     elif f == "Diastolic":
-        val = st.slider("Diastolic BP", 60, 120, st.session_state[key], key=key)
+        user_inputs[f] = st.slider("Diastolic BP", 60, 120, default_val, key=key)
     elif f == "Daily Steps":
-        val = st.slider("Daily Steps", 0, 20000, st.session_state[key], key=key)
+        user_inputs[f] = st.slider("Daily Steps", 0, 20000, default_val, key=key)
     else:
         min_val = float(df_encoded[f].min())
         max_val = float(df_encoded[f].max())
-        val = st.slider(f, min_val, max_val, st.session_state[key], key=key)
+        user_inputs[f] = st.slider(f, min_val, max_val, default_val, key=key)
 
-    st.session_state[key] = val
-    user_inputs[f] = val
 
   
 
