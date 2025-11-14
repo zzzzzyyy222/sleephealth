@@ -502,6 +502,5 @@ elif page == "Prediction":
         st.success(f"Sleep Disorder: **{pred_class}**")
         st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
 
-        st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
 
 
