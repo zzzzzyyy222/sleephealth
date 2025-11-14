@@ -398,24 +398,6 @@ elif page == "Prediction":
     else:
         st.info("SMOTE not applied.")
 
-    if balance:
-        y_after_counts = Counter(y_train)
-        df_balance = pd.DataFrame({
-            "Class": list(le.classes_) * 2,
-            "Count": [y_before_counts.get(i, 0) for i in range(len(le.classes_))] +
-                     [y_after_counts.get(i, 0) for i in range(len(le.classes_))],
-            "Stage": ["Before SMOTE"] * len(le.classes_) +
-                     ["After SMOTE"] * len(le.classes_)
-        })
-        fig_balance = px.bar(
-            df_balance, x="Class", y="Count", color="Stage",
-            barmode="group",
-            title="Class Distribution Before and After SMOTE",
-            color_discrete_map={"Before SMOTE": "#62C3A5", "After SMOTE": "#F78364"}
-        )
-        fig_balance.update_layout(xaxis_title="Class", yaxis_title="Count", title_x=0.3)
-        st.plotly_chart(fig_balance, use_container_width=True)
-
     # -------------------
     # Model selection
     # -------------------
@@ -453,37 +435,27 @@ elif page == "Prediction":
         perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
         importance = dict(zip(features, perm.importances_mean))
 
-    # Keep only non-zero importance features
-    important_features = [f for f, val in importance.items() if val > 0]
-    sorted_features = sorted([(f, importance[f]) for f in important_features], key=lambda x: x[1], reverse=True)
+    # Sort features by importance
+    sorted_features = sorted([(f, importance[f]) for f in importance if importance[f] > 0],
+                             key=lambda x: x[1], reverse=True)
 
     # -------------------
-    # User Input 
+    # User Input (Top 5 unique features)
     # -------------------
     st.subheader("Enter Your Details for Prediction")
     user_inputs = {}
 
-    # Handle categorical inputs separately
-    if "Occupation" in categorical_cols:
-        occupations = df_pred["Occupation"].dropna().unique().tolist()
-        user_inputs["Occupation"] = st.selectbox("Occupation", occupations)
-
-    if "Gender" in categorical_cols:
-        user_inputs["Gender"] = st.selectbox("Gender", df_pred["Gender"].dropna().unique().tolist())
-
-    if "BMI Category" in categorical_cols:
-        user_inputs["BMI Category"] = st.selectbox("BMI Category", df_pred["BMI Category"].dropna().unique().tolist())
-
-    # Top 5 numeric features only
-    numeric_top5 = []
+    top5_features = []
     for f, _ in sorted_features:
+        # Skip categorical one-hot and duplicates
         if f in categorical_cols or any(f.startswith(cat + "_") for cat in categorical_cols):
             continue
-        numeric_top5.append(f)
-        if len(numeric_top5) >= 5:
+        if f not in top5_features:
+            top5_features.append(f)
+        if len(top5_features) >= 5:
             break
 
-    for f in numeric_top5:
+    for f in top5_features:
         key = f"inp_{f}"
         if f == "Age":
             user_inputs[f] = st.slider("Age", 18, 80, 30, key=key)
@@ -512,19 +484,16 @@ elif page == "Prediction":
     # Convert to DataFrame
     input_df = pd.DataFrame([user_inputs])
 
-    # Apply same encoding as training
-    input_encoded = pd.get_dummies(input_df, columns=categorical_cols, drop_first=True)
-
-    # Ensure all features exist
+    # Ensure all features required by the model exist
     for col in features:
-        if col not in input_encoded.columns:
-            input_encoded[col] = df_encoded[col].mean() if col in numeric_cols else 0
+        if col not in input_df.columns:
+            input_df[col] = df_encoded[col].mean() if col in numeric_cols else 0
 
-    input_encoded = input_encoded[features]
+    input_encoded = input_df[features]
 
-   # -------------------
-   # Prediction
-   # -------------------
+    # -------------------
+    # Prediction
+    # -------------------
     if st.button("\u2705 Predict Sleep Disorder"):
         X_new = scaler.transform(input_encoded)
         pred_class = le.inverse_transform(model.predict(X_new))[0]
@@ -534,10 +503,13 @@ elif page == "Prediction":
 
         advice = {
             "Normal Sleep": "Your sleep pattern looks healthy.",
-            "Insomnia": "You may experience insomnia. Establish a consistent sleep schedule, make your bedroom dark, quiet, and cool, and avoid stimulants like caffeine and nicotine close to bedtime. Regular exercise during the day is helpful, but avoid intense workouts near bedtime. If you can't sleep after about 20 minutes, get out of bed and do a relaxing activity until you feel sleepy again. ",
-            "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation. try lifestyle changes like losing weight, exercising, avoiding alcohol and sedatives, and sleeping on your side instead of your back."
+            "Insomnia": "You may experience insomnia. Establish a consistent sleep schedule, make your bedroom dark, quiet, and cool, and avoid stimulants like caffeine and nicotine close to bedtime.",
+            "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation. Try lifestyle changes like losing weight, exercising, avoiding alcohol and sedatives, and sleeping on your side instead of your back."
         }
 
         st.subheader("\U0001F50E Prediction Result")
+        st.success(f"Sleep Disorder: **{pred_class}**")
+        st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
+
         st.success(f"Sleep Disorder: **{pred_class}**")
         st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
