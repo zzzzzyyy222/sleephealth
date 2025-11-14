@@ -445,41 +445,46 @@ elif page == "Prediction":
     st.subheader("Enter Your Details for Prediction")
     user_inputs = {}
 
-    top5_features = []
+    # -------------------
+# User Input 
+# -------------------
+st.subheader("Enter Your Details for Prediction")
+user_inputs = {}
+
+# Cache top 5 numeric features once per session to avoid flicker
+if "numeric_top5" not in st.session_state:
+    numeric_top5 = []
     for f, _ in sorted_features:
-        # Skip categorical one-hot and duplicates
+        # Skip categorical features and one-hot expansions
         if f in categorical_cols or any(f.startswith(cat + "_") for cat in categorical_cols):
             continue
-        if f not in top5_features:
-            top5_features.append(f)
-        if len(top5_features) >= 5:
+        if f not in numeric_top5:
+            numeric_top5.append(f)
+        if len(numeric_top5) >= 5:
             break
+    st.session_state.numeric_top5 = numeric_top5
 
-    for f in top5_features:
-        key = f"inp_{f}"
-        if f == "Age":
-            user_inputs[f] = st.slider("Age", 18, 80, 30, key=key)
-        elif f == "Sleep Duration":
-            user_inputs[f] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0, key=key)
-        elif f == "Quality of Sleep":
-            user_inputs[f] = st.slider("Quality of Sleep (low to high)", 1, 10, 7, key=key)
-        elif f == "Physical Activity Level":
-            user_inputs[f] = st.slider("Physical Activity (min per day)", 0, 300, 30, key=key)
-        elif f == "Stress Level":
-            user_inputs[f] = st.slider("Stress Level (low to high)", 1, 10, 5, key=key)
-        elif f == "Heart Rate":
-            user_inputs[f] = st.slider("Heart Rate (bpm)", 40, 120, 70, key=key)
-        elif f == "Systolic":
-            user_inputs[f] = st.slider("Systolic BP", 90, 180, 120, key=key)
-        elif f == "Diastolic":
-            user_inputs[f] = st.slider("Diastolic BP", 60, 120, 80, key=key)
-        elif f == "Daily Steps":
-            user_inputs[f] = st.slider("Daily Steps", 0, 20000, 5000, key=key)
-        else:
-            min_val = float(df_encoded[f].min())
-            max_val = float(df_encoded[f].max())
-            mean_val = float(df_encoded[f].mean())
-            user_inputs[f] = st.slider(f, min_val, max_val, mean_val, key=key)
+# Use the cached list
+numeric_top5 = st.session_state.numeric_top5
+
+# Create widgets for those 5 features
+for f in numeric_top5:
+    key = f"inp_{f}"
+    if f == "Age":
+        user_inputs[f] = st.slider("Age", 18, 80, 30, key=key)
+    elif f == "Sleep Duration":
+        user_inputs[f] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0, key=key)
+    elif f == "Quality of Sleep":
+        user_inputs[f] = st.slider("Quality of Sleep (low to high)", 1, 10, 7, key=key)
+    elif f == "Stress Level":
+        user_inputs[f] = st.slider("Stress Level (low to high)", 1, 10, 5, key=key)
+    else:
+        min_val = float(df_encoded[f].min())
+        max_val = float(df_encoded[f].max())
+        mean_val = float(df_encoded[f].mean())
+        user_inputs[f] = st.slider(f, min_val, max_val, mean_val, key=key)
+
+   
 
     # Convert to DataFrame
     input_df = pd.DataFrame([user_inputs])
