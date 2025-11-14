@@ -470,51 +470,70 @@ elif page == "Prediction":
     st.plotly_chart(fig_feat, use_container_width=True)
 
     # -------------------
-    # User input panel
-    # -------------------
-    st.subheader("Enter Your Details for Prediction")
-    input_values = {}
+# User Input Panel based on Feature Importance
+# -------------------
+st.subheader("Enter Your Details for Prediction")
 
-    # Show sliders/selectboxes only for features with non-zero importance
-    for f, _ in sorted_features:
-        key = f"inp_{f}"
-        if f in categorical_cols:
-            unique_vals = sorted(df_pred[f].dropna().unique())
-            input_values[f] = st.selectbox(f, unique_vals, key=key)
-        else:
-            # Numeric slider
-            min_val = float(df_pred[f].min())
-            max_val = float(df_pred[f].max())
-            mean_val = float(df_pred[f].mean())
-            input_values[f] = st.slider(f, min_val, max_val, mean_val, key=key)
+input_values = {}
 
-    input_df = pd.DataFrame([input_values])
+# Keep track of added categoricals to avoid duplicates
+added_categoricals = set()
 
-    # One-hot encode categorical
-    input_encoded = pd.get_dummies(input_df, columns=[c for c in categorical_cols if c in input_df.columns], drop_first=True)
+for f, _ in sorted_features:
+    key = f"inp_{f}"
 
-    # Ensure compatibility with model features
-    for col in features:
-        if col not in input_encoded.columns:
-            input_encoded[col] = 0
-    input_encoded = input_encoded[features]
+    # Check if feature is derived from categorical
+    orig_cat = None
+    for cat in categorical_cols:
+        if f == cat or f.startswith(cat + "_"):
+            orig_cat = cat
+            break
 
-    # -------------------
-    # Predict
-    # -------------------
-    if st.button("\u2705 Predict Sleep Disorder"):
-        X_new = scaler.transform(input_encoded)
-        pred_class = le.inverse_transform(model.predict(X_new))[0]
+    if orig_cat:
+        # Only add categorical once
+        if orig_cat in added_categoricals:
+            continue
+        added_categoricals.add(orig_cat)
+        # Create selectbox from original df_pred
+        unique_vals = sorted(df_pred[orig_cat].dropna().unique())
+        input_values[f] = st.selectbox(orig_cat, unique_vals, key=key)
+    else:
+        # Numeric feature: use df_encoded to get min, max, mean
+        min_val = float(df_encoded[f].min())
+        max_val = float(df_encoded[f].max())
+        mean_val = float(df_encoded[f].mean())
+        input_values[f] = st.slider(f, min_val, max_val, mean_val, key=key)
 
-        if pred_class == "None":
-            pred_class = "Normal Sleep"
+# Convert to DataFrame
+input_df = pd.DataFrame([input_values])
 
-        advice = {
-            "Normal Sleep": "Your sleep pattern looks healthy.",
-            "Insomnia": "You may experience insomnia. Improve sleep hygiene.",
-            "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation."
-        }
+# One-hot encode categorical inputs
+present_cats = [col for col in categorical_cols if col in input_df.columns]
+input_encoded = pd.get_dummies(input_df, columns=present_cats, drop_first=True)
 
-        st.subheader("\U0001F50E Prediction Result")
-        st.success(f"Sleep Disorder: **{pred_class}**")
-        st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
+# Ensure all features required by the model exist
+for col in features:
+    if col not in input_encoded.columns:
+        input_encoded[col] = 0
+
+input_encoded = input_encoded[features]
+
+# -------------------
+# Final Prediction
+# -------------------
+if st.button("\u2705 Predict Sleep Disorder"):
+    X_new = scaler.transform(input_encoded)
+    pred_class = le.inverse_transform(model.predict(X_new))[0]
+
+    if pred_class == "None":
+        pred_class = "Normal Sleep"
+
+    advice = {
+        "Normal Sleep": "Your sleep pattern looks healthy.",
+        "Insomnia": "You may experience insomnia. Improve sleep hygiene.",
+        "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation."
+    }
+
+    st.subheader("\U0001F50E Prediction Result")
+    st.success(f"Sleep Disorder: **{pred_class}**")
+    st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
