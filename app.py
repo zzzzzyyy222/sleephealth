@@ -389,6 +389,7 @@ elif page == "Prediction":
     # -------------------
     st.subheader("📊 Class Balancing (SMOTE Option)")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True)
+    y_before_counts = Counter(y_train)
 
     if balance:
         smote = SMOTE(random_state=42)
@@ -396,6 +397,25 @@ elif page == "Prediction":
         st.info("SMOTE applied!")
     else:
         st.info("SMOTE not applied.")
+
+    # Balancing visualization
+    if balance:
+        y_after_counts = Counter(y_train)
+        df_balance = pd.DataFrame({
+            "Class": list(le.classes_) * 2,
+            "Count": [y_before_counts.get(i, 0) for i in range(len(le.classes_))] +
+                     [y_after_counts.get(i, 0) for i in range(len(le.classes_))],
+            "Stage": ["Before SMOTE"] * len(le.classes_) +
+                     ["After SMOTE"] * len(le.classes_)
+        })
+        fig_balance = px.bar(
+            df_balance, x="Class", y="Count", color="Stage",
+            barmode="group",
+            title="Class Distribution Before and After SMOTE",
+            color_discrete_map={"Before SMOTE": "#62C3A5", "After SMOTE": "#F78364"}
+        )
+        fig_balance.update_layout(xaxis_title="Class", yaxis_title="Count", title_x=0.3)
+        st.plotly_chart(fig_balance, use_container_width=True)
 
     # -------------------
     # Model selection
@@ -436,12 +456,12 @@ elif page == "Prediction":
     sorted_features = sorted([(f, importance[f]) for f in important_features],
                              key=lambda x: x[1], reverse=True)
 
+    # -------------------
     # Stable Top Features
     # -------------------
     if "numeric_top5" not in st.session_state:
         numeric_top5 = []
         for f, _ in sorted_features:
-            # Skip categorical features
             if any(f == cat or f.startswith(cat + "_") for cat in categorical_cols):
                 continue
             numeric_top5.append(f)
@@ -451,18 +471,15 @@ elif page == "Prediction":
 
     numeric_top5 = st.session_state["numeric_top5"]
 
-
+    # -------------------
     # User Input 
     # -------------------
     st.subheader("Enter Your Details for Prediction")
     user_inputs = {}
 
-    # Use the stable numeric_top5 from session_state
-    numeric_top5 = st.session_state["numeric_top5"]
-
-    # Create widgets for top numeric features
+    # Sliders for numeric features
     for f in numeric_top5:
-        key = f"inp_{f}"  # stable key per feature
+        key = f"inp_{f}"
         if f == "Age":
             user_inputs[f] = st.slider("Age", 18, 80, 30, key=key)
         elif f == "Sleep Duration":
@@ -470,35 +487,41 @@ elif page == "Prediction":
         elif f == "Quality of Sleep":
             user_inputs[f] = st.slider("Quality of Sleep (low to high)", 1, 10, 7, key=key)
         elif f == "Physical Activity Level":
-           user_inputs[f] = st.slider("Physical Activity (min per day)", 0, 300, 30, key=key)
+            user_inputs[f] = st.slider("Physical Activity (min per day)", 0, 300, 30, key=key)
         elif f == "Stress Level":
-           user_inputs[f] = st.slider("Stress Level (low to high)", 1, 10, 5, key=key)
+            user_inputs[f] = st.slider("Stress Level (low to high)", 1, 10, 5, key=key)
         elif f == "Heart Rate":
-           user_inputs[f] = st.slider("Heart Rate (bpm)", 40, 120, 70, key=key)
+            user_inputs[f] = st.slider("Heart Rate (bpm)", 40, 120, 70, key=key)
         elif f == "Systolic":
-           user_inputs[f] = st.slider("Systolic BP", 90, 180, 120, key=key)
+            user_inputs[f] = st.slider("Systolic BP", 90, 180, 120, key=key)
         elif f == "Diastolic":
-           user_inputs[f] = st.slider("Diastolic BP", 60, 120, 80, key=key)
+            user_inputs[f] = st.slider("Diastolic BP", 60, 120, 80, key=key)
         elif f == "Daily Steps":
-           user_inputs[f] = st.slider("Daily Steps", 0, 20000, 5000, key=key)
+            user_inputs[f] = st.slider("Daily Steps", 0, 20000, 5000, key=key)
         else:
-           min_val = float(df_encoded[f].min())
-           max_val = float(df_encoded[f].max())
-           mean_val = float(df_encoded[f].mean())
-           user_inputs[f] = st.slider(f, min_val, max_val, mean_val, key=key)
+            min_val = float(df_encoded[f].min())
+            max_val = float(df_encoded[f].max())
+            mean_val = float(df_encoded[f].mean())
+            user_inputs[f] = st.slider(f, min_val, max_val, mean_val, key=key)
+
+    # Dropdowns for categoricals
+    for cat in categorical_cols:
+        options = df_pred[cat].dropna().unique().tolist()
+        user_inputs[cat] = st.selectbox(f"{cat}", options, key=f"inp_{cat}")
+
     # -------------------
-    # Convert user inputs to DataFrame
+    # Build input vector
     # -------------------
     input_df = pd.DataFrame([user_inputs])
 
-    # Ensure all features required by the model exist
-    input_encoded = input_df.copy()
+    # One-hot encode categoricals same as training
+    input_encoded = pd.get_dummies(input_df, columns=categorical_cols, drop_first=True)
+
+    # Add missing columns
     for col in features:
         if col not in input_encoded.columns:
-        # Fill missing numeric features with training mean, categoricals with 0
-         input_encoded[col] = df_encoded[col].mean() if col in numeric_cols else 0
+            input_encoded[col] = df_encoded[col].mean() if col in numeric_cols else 0
 
-    # Reorder columns to match training features
     input_encoded = input_encoded[features]
 
     # -------------------
@@ -513,12 +536,10 @@ elif page == "Prediction":
 
         advice = {
             "Normal Sleep": "Your sleep pattern looks healthy.",
-            "Insomnia": "You may experience insomnia. Improve your sleep schedule and environment.",
-            "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation."
+            "Insomnia": "You may experience insomnia. Establish a consistent sleep schedule, improve your sleep environment, and avoid stimulants near bedtime.",
+            "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation and consider lifestyle changes like weight loss, exercise, and sleeping on your side."
         }
 
-        st.subheader("🔍 Prediction Result")
-        st.success(f"Sleep Disorder: **{pred_class}**")
-        st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
+
 
 
