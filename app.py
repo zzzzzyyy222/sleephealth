@@ -496,7 +496,7 @@ elif page == "Prediction":
     for col in features:
         if col not in input_encoded.columns:
         # Fill missing numeric features with training mean, categoricals with 0
-        input_encoded[col] = df_encoded[col].mean() if col in numeric_cols else 0
+         input_encoded[col] = df_encoded[col].mean() if col in numeric_cols else 0
 
     # Reorder columns to match training features
     input_encoded = input_encoded[features]
