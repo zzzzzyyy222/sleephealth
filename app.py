@@ -441,59 +441,39 @@ elif page == "Prediction":
     y_pred = model.predict(X_test)
 
     # -------------------
-    # Classification Report
+    # Classification Report (Expander Style)
     # -------------------
-    st.subheader("📊 Model Performance")
-
-    # Generate classification report
-    report = classification_report(
-        y_test, 
-        y_pred, 
-        target_names=le.classes_, 
-        output_dict=True
-    )
-
-    # Convert to DataFrame
-    report_df = pd.DataFrame(report).transpose().reset_index()
-    report_df = report_df.rename(columns={"index": "Class"})
-
-    # Display table
-    st.dataframe(
-        report_df.style
-            .format({
-                "precision": "{:.2f}", 
-                "recall": "{:.2f}", 
-                "f1-score": "{:.2f}", 
-                "support": "{:.0f}"
-            })
-            .background_gradient(cmap="Greens", subset=["f1-score"])
-    )
+    st.subheader(f"{model_choice} Evaluation Metrics")
 
     # Accuracy
     acc = accuracy_score(y_test, y_pred)
-    st.metric("✔ Accuracy Score", f"{acc:.2f}")
+    st.markdown(f"**Accuracy:** <span style='color:green;'>**{acc:.2f}**</span>", unsafe_allow_html=True)
 
-    # -------------------
-    # F1 Score Task Bar
-    # -------------------
-    st.subheader("📌 F1 Score by Class")
+    # Classes
+    class_list = ", ".join(le.classes_)
+    st.markdown(f"**Classes:** `{class_list}`")
 
-    f1_scores = report_df.set_index("Class")["f1-score"].dropna()
+    # Classification Report inside expander
+    with st.expander("📘 Classification Report", expanded=False):
+        report = classification_report(
+            y_test,
+            y_pred,
+            target_names=le.classes_,
+            output_dict=True
+        )
 
-    fig_f1 = px.bar(
-        f1_scores,
-        x=f1_scores.values,
-        y=f1_scores.index,
-        orientation="h",
-        title="F1 Score per Class",
-        labels={"x": "F1 Score", "y": "Class"},
-        text=f1_scores.values,
-        color=f1_scores.values,
-        color_continuous_scale="Teal"
-    )
+        report_df = pd.DataFrame(report).transpose()
 
-    fig_f1.update_layout(xaxis_range=[0, 1])
-    st.plotly_chart(fig_f1, use_container_width=True)
+       st.dataframe(
+           report_df.style
+               .format({
+                   "precision": "{:.2f}",
+                   "recall": "{:.2f}",
+                   "f1-score": "{:.2f}",
+                   "support": "{:.0f}"
+               })
+        )
+
 
     
     # -------------------
