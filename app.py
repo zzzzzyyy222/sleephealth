@@ -487,6 +487,21 @@ elif page == "Prediction":
            mean_val = float(df_encoded[f].mean())
            user_inputs[f] = st.slider(f, min_val, max_val, mean_val, key=key)
     # -------------------
+    # Convert user inputs to DataFrame
+    # -------------------
+    input_df = pd.DataFrame([user_inputs])
+
+    # Ensure all features required by the model exist
+    input_encoded = input_df.copy()
+    for col in features:
+        if col not in input_encoded.columns:
+        # Fill missing numeric features with training mean, categoricals with 0
+        input_encoded[col] = df_encoded[col].mean() if col in numeric_cols else 0
+
+    # Reorder columns to match training features
+    input_encoded = input_encoded[features]
+
+    # -------------------
     # Prediction
     # -------------------
     if st.button("✅ Predict Sleep Disorder", key="predict_btn"):
@@ -505,4 +520,5 @@ elif page == "Prediction":
         st.subheader("🔍 Prediction Result")
         st.success(f"Sleep Disorder: **{pred_class}**")
         st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
+
 
