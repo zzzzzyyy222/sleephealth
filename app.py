@@ -457,21 +457,8 @@ elif page == "Prediction":
     important_features = [f for f, val in importance.items() if val > 0]
     sorted_features = sorted([(f, importance[f]) for f in important_features], key=lambda x: x[1], reverse=True)
 
-    # -------------------
-    # Plot feature importance
-    # -------------------
-    fig_feat = px.bar(
-        x=[i[1] for i in sorted_features],
-        y=[i[0] for i in sorted_features],
-        orientation="h",
-        title=f"Feature Importance - {model_choice}"
-    )
-    fig_feat.update_layout(yaxis=dict(autorange="reversed"))
-    st.plotly_chart(fig_feat, use_container_width=True)
-
-    # -------------------
 # -------------------
-# User Input (top 5 features based on feature importance)
+# User Input 
 # -------------------
 st.subheader("Enter Your Details for Prediction")
 user_inputs = {}
@@ -494,11 +481,11 @@ for f in numeric_top5:
     elif f == "Sleep Duration":
         user_inputs[f] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0, key=key)
     elif f == "Quality of Sleep":
-        user_inputs[f] = st.slider("Quality of Sleep", 1, 10, 7, key=key)
+        user_inputs[f] = st.slider("Quality of Sleep (low to high)", 1, 10, 7, key=key)
     elif f == "Physical Activity Level":
-        user_inputs[f] = st.slider("Physical Activity (min/day)", 0, 300, 30, key=key)
+        user_inputs[f] = st.slider("Physical Activity (min per day)", 0, 300, 30, key=key)
     elif f == "Stress Level":
-        user_inputs[f] = st.slider("Stress Level", 1, 10, 5, key=key)
+        user_inputs[f] = st.slider("Stress Level *low to high)", 1, 10, 5, key=key)
     elif f == "Heart Rate":
         user_inputs[f] = st.slider("Heart Rate (bpm)", 40, 120, 70, key=key)
     elif f == "Systolic":
@@ -539,8 +526,8 @@ if st.button("\u2705 Predict Sleep Disorder"):
 
     advice = {
         "Normal Sleep": "Your sleep pattern looks healthy.",
-        "Insomnia": "You may experience insomnia. Improve sleep hygiene.",
-        "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation."
+        "Insomnia": "You may experience insomnia. Establish a consistent sleep schedule, make your bedroom dark, quiet, and cool, and avoid stimulants like caffeine and nicotine close to bedtime. Regular exercise during the day is helpful, but avoid intense workouts near bedtime. If you can't sleep after about 20 minutes, get out of bed and do a relaxing activity until you feel sleepy again. ",
+        "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation. try lifestyle changes like losing weight, exercising, avoiding alcohol and sedatives, and sleeping on your side instead of your back."
     }
 
     st.subheader("\U0001F50E Prediction Result")
