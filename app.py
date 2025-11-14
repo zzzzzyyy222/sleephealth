@@ -457,85 +457,86 @@ elif page == "Prediction":
     important_features = [f for f, val in importance.items() if val > 0]
     sorted_features = sorted([(f, importance[f]) for f in important_features], key=lambda x: x[1], reverse=True)
     
-    # -------------------
-    # Freeze top features once per run
-    # -------------------
-    if "top_numeric_features" not in st.session_state:
-        numeric_top5 = []
-        for f, _ in sorted_features:
-            # Skip categorical features
-            if any(f == cat or f.startswith(cat + "_") for cat in categorical_cols):
-                continue
-            numeric_top5.append(f)
-            if len(numeric_top5) >= 5:
-                break
-        st.session_state.top_numeric_features = numeric_top5
+   # -------------------
+# Freeze top features once per run
+# -------------------
+if "top_numeric_features" not in st.session_state:
+    numeric_top5 = []
+    for f, _ in sorted_features:
+        # Skip categorical features
+        if any(f == cat or f.startswith(cat + "_") for cat in categorical_cols):
+            continue
+        numeric_top5.append(f)
+        if len(numeric_top5) >= 5:
+            break
+    st.session_state.top_numeric_features = numeric_top5
 
-    # Always use the saved, stable version
-    numeric_top5 = st.session_state.top_numeric_features
+# Always use the saved, stable version
+numeric_top5 = st.session_state.top_numeric_features
 
-    # -------------------
-    # User Input Section
-    # -------------------
-    st.subheader("Enter Your Details for Prediction")
-    user_inputs = {}
+# -------------------
+# User Input Section
+# -------------------
+st.subheader("Enter Your Details for Prediction")
+user_inputs = {}
 
-    # Initialize session state for sliders if not already present
-    for f in numeric_top5:
-        key = f"inp_{f}"
-        if key not in st.session_state:
-            # Set sensible defaults
-            if f == "Age":
-                st.session_state[key] = 30
-            elif f == "Sleep Duration":
-                st.session_state[key] = 7.0
-            elif f == "Quality of Sleep":
-                st.session_state[key] = 7
-            elif f == "Physical Activity Level":
-                st.session_state[key] = 30
-            elif f == "Stress Level":
-                st.session_state[key] = 5
-            elif f == "Heart Rate":
-                st.session_state[key] = 70
-            elif f == "Systolic":
-                st.session_state[key] = 120
-            elif f == "Diastolic":
-                st.session_state[key] = 80
-            elif f == "Daily Steps":
-                st.session_state[key] = 5000
-            else:
-               st.session_state[key] = float(df_encoded[f].mean())
-
-    # Render sliders in fixed order
-    for idx, f in enumerate(numeric_top5):
-        key = f"inp_{f}"
-
-        # Map specific sliders
+# Initialize session state for sliders if not already present
+for f in numeric_top5:
+    key = f"inp_{f}"
+    if key not in st.session_state:
+        # Set sensible defaults
         if f == "Age":
-            val = st.slider("Age", 18, 80, st.session_state[key], key=key)
+            st.session_state[key] = 30
         elif f == "Sleep Duration":
-            val = st.slider("Sleep Duration (hours)", 0.0, 12.0, st.session_state[key], key=key)
+            st.session_state[key] = 7.0
         elif f == "Quality of Sleep":
-            val = st.slider("Quality of Sleep (low to high)", 1, 10, st.session_state[key], key=key)
+            st.session_state[key] = 7
         elif f == "Physical Activity Level":
-            val = st.slider("Physical Activity (min per day)", 0, 300, st.session_state[key], key=key)
+            st.session_state[key] = 30
         elif f == "Stress Level":
-            val = st.slider("Stress Level (low to high)", 1, 10, st.session_state[key], key=key)
+            st.session_state[key] = 5
         elif f == "Heart Rate":
-            val = st.slider("Heart Rate (bpm)", 40, 120, st.session_state[key], key=key)
+            st.session_state[key] = 70
         elif f == "Systolic":
-            val = st.slider("Systolic BP", 90, 180, st.session_state[key], key=key)
+            st.session_state[key] = 120
         elif f == "Diastolic":
-            val = st.slider("Diastolic BP", 60, 120, st.session_state[key], key=key)
+            st.session_state[key] = 80
         elif f == "Daily Steps":
-            val = st.slider("Daily Steps", 0, 20000, st.session_state[key], key=key)
+            st.session_state[key] = 5000
         else:
-            min_val = float(df_encoded[f].min())
-            max_val = float(df_encoded[f].max())
-            val = st.slider(f, min_val, max_val, st.session_state[key], key=key)
+            st.session_state[key] = float(df_encoded[f].mean())
 
-               st.session_state[key] = val
-               user_inputs[f] = val
+# Render sliders in fixed order
+for idx, f in enumerate(numeric_top5):
+    key = f"inp_{f}"
+
+    # Map specific sliders
+    if f == "Age":
+        val = st.slider("Age", 18, 80, st.session_state[key], key=key)
+    elif f == "Sleep Duration":
+        val = st.slider("Sleep Duration (hours)", 0.0, 12.0, st.session_state[key], key=key)
+    elif f == "Quality of Sleep":
+        val = st.slider("Quality of Sleep (low to high)", 1, 10, st.session_state[key], key=key)
+    elif f == "Physical Activity Level":
+        val = st.slider("Physical Activity (min per day)", 0, 300, st.session_state[key], key=key)
+    elif f == "Stress Level":
+        val = st.slider("Stress Level (low to high)", 1, 10, st.session_state[key], key=key)
+    elif f == "Heart Rate":
+        val = st.slider("Heart Rate (bpm)", 40, 120, st.session_state[key], key=key)
+    elif f == "Systolic":
+        val = st.slider("Systolic BP", 90, 180, st.session_state[key], key=key)
+    elif f == "Diastolic":
+        val = st.slider("Diastolic BP", 60, 120, st.session_state[key], key=key)
+    elif f == "Daily Steps":
+        val = st.slider("Daily Steps", 0, 20000, st.session_state[key], key=key)
+    else:
+        min_val = float(df_encoded[f].min())
+        max_val = float(df_encoded[f].max())
+        val = st.slider(f, min_val, max_val, st.session_state[key], key=key)
+
+    st.session_state[key] = val
+    user_inputs[f] = val
+
   
 
 # Convert to DataFrame
