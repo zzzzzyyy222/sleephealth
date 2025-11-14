@@ -422,18 +422,35 @@ elif page == "Prediction":
     model.fit(X_train, y_train)
 
     # -------------------
-    # Feature importance (NO CACHING)
-    # -------------------
-    if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
-        importance = dict(zip(features, model.feature_importances_))
-    elif model_choice == "Logistic Regression":
-        importance = dict(zip(features, abs(model.coef_[0])))
-    else:  # SVM
-        perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
-        importance = dict(zip(features, perm.importances_mean))
+# Feature importance
+# -------------------
+if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
+    importance = dict(zip(features, model.feature_importances_))
+elif model_choice == "Logistic Regression":
+    importance = dict(zip(features, abs(model.coef_[0])))
+else:  # SVM
+    perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
+    importance = dict(zip(features, perm.importances_mean))
 
-    important_features = [f for f, val in importance.items() if val > 0 and f in numeric_cols]
-    sorted_features = sorted([(f, importance[f]) for f in important_features], key=lambda x: x[1], reverse=True)
+important_features = [f for f, val in importance.items() if val > 0]
+sorted_features = sorted([(f, importance[f]) for f in important_features],
+                         key=lambda x: x[1], reverse=True)
+
+# -------------------
+# Stable TOP 5 numeric features
+# -------------------
+numeric_ranked = []
+for f, _ in sorted_features:
+    if any(f == cat or f.startswith(cat + "_") for cat in categorical_cols):
+        continue
+    numeric_ranked.append(f)
+
+# Store only once per session to avoid widget re-creation
+if "numeric_top5" not in st.session_state:
+    st.session_state.numeric_top5 = numeric_ranked[:5]
+
+numeric_top5 = st.session_state.numeric_top5
+
 
     # -------------------
     # User inputs (Top 5 numeric)
