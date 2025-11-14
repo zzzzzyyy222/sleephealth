@@ -352,19 +352,18 @@ elif page == "Prediction":
         df_pred["Diastolic"] = pd.to_numeric(bp_split[1], errors="coerce")
         df_pred = df_pred.drop(columns=["Blood Pressure"])
 
+    # -------------------
     # Categorical columns
+    # -------------------
     categorical_cols = ["Gender", "BMI Category"]
     if "Occupation" in df_pred.columns:
         categorical_cols.append("Occupation")
 
-    # One-hot encoding
     df_encoded = pd.get_dummies(df_pred, columns=categorical_cols, drop_first=True)
 
-    # Fill numeric NaNs
     numeric_cols = df_encoded.select_dtypes(include=[np.number]).columns.tolist()
     df_encoded[numeric_cols] = df_encoded[numeric_cols].fillna(df_encoded[numeric_cols].mean())
 
-    # Features & target
     features = [c for c in df_encoded.columns if c != "Sleep Disorder"]
     X_full = df_encoded[features].astype(float).values
     le = LabelEncoder()
@@ -378,11 +377,9 @@ elif page == "Prediction":
     X_full = X_full[mask]
     y = y[mask]
 
-    # Scale features
     scaler = StandardScaler()
     X = scaler.fit_transform(X_full)
 
-    # Train-test split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     # -------------------
@@ -390,32 +387,12 @@ elif page == "Prediction":
     # -------------------
     st.subheader("\U0001F4CA Class Balancing (SMOTE Option)")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True)
-    y_before_counts = Counter(y_train)
-
     if balance:
         smote = SMOTE(random_state=42)
         X_train, y_train = smote.fit_resample(X_train, y_train)
         st.info("SMOTE applied!")
     else:
         st.info("SMOTE not applied.")
-
-    if balance:
-        y_after_counts = Counter(y_train)
-        df_balance = pd.DataFrame({
-            "Class": list(le.classes_) * 2,
-            "Count": [y_before_counts.get(i, 0) for i in range(len(le.classes_))] +
-                     [y_after_counts.get(i, 0) for i in range(len(le.classes_))],
-            "Stage": ["Before SMOTE"] * len(le.classes_) +
-                     ["After SMOTE"] * len(le.classes_)
-        })
-        fig_balance = px.bar(
-            df_balance, x="Class", y="Count", color="Stage",
-            barmode="group",
-            title="Class Distribution Before and After SMOTE",
-            color_discrete_map={"Before SMOTE": "#62C3A5", "After SMOTE": "#F78364"}
-        )
-        fig_balance.update_layout(xaxis_title="Class", yaxis_title="Count", title_x=0.3)
-        st.plotly_chart(fig_balance, use_container_width=True)
 
     # -------------------
     # Model selection
@@ -466,8 +443,9 @@ elif page == "Prediction":
     user_inputs = {}
     numeric_top5 = [f for f, _ in sorted_features][:5]  # top 5 numeric features
 
-    for f in numeric_top5:
-        key = f"inp_{f}"
+    # Use fully static keys for sliders
+    for idx, f in enumerate(numeric_top5):
+        key = f"{model_choice}_input_{idx}_{f}"  # static unique key
         min_val = float(df_encoded[f].min())
         max_val = float(df_encoded[f].max())
         mean_val = float(df_encoded[f].mean())
@@ -501,6 +479,3 @@ elif page == "Prediction":
         st.subheader("\U0001F50E Prediction Result")
         st.success(f"Sleep Disorder: **{pred_class}**")
         st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
-
-
-
