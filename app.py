@@ -545,19 +545,20 @@ elif page == "Prediction":
     st.subheader("Choose Model")
     model_choice = st.selectbox(
         "Select Model",
-        ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"]
+        ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"],
+        key="model_choice"
     )
 
     if model_choice == "Random Forest":
-        model = RandomForestClassifier(class_weight=None if balance else "balanced")
+        model = RandomForestClassifier(class_weight=None if balance else "balanced", random_state=42)
     elif model_choice == "Logistic Regression":
-        model = LogisticRegression(max_iter=1000, class_weight=None if balance else "balanced")
+        model = LogisticRegression(max_iter=1000, class_weight=None if balance else "balanced", random_state=42)
     elif model_choice == "SVM":
-        model = SVC(kernel="rbf", probability=True, class_weight=None if balance else "balanced")
+        model = SVC(kernel="rbf", probability=True, class_weight=None if balance else "balanced", random_state=42)
     elif model_choice == "Decision Tree":
-        model = DecisionTreeClassifier(class_weight=None if balance else "balanced")
+        model = DecisionTreeClassifier(class_weight=None if balance else "balanced", random_state=42)
     elif model_choice == "XGBoost":
-        model = XGBClassifier(use_label_encoder=False, eval_metric="mlogloss")
+        model = XGBClassifier(use_label_encoder=False, eval_metric="mlogloss", random_state=42)
 
     # -------------------
     # Train model
@@ -576,103 +577,68 @@ elif page == "Prediction":
         perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
         importance = dict(zip(features, perm.importances_mean))
 
-    # Keep only non-zero importance features
-    important_features = [f for f, val in importance.items() if val > 0]
-    sorted_features = sorted([(f, importance[f]) for f in important_features], key=lambda x: x[1], reverse=True)
+    # Keep only features with importance > 0
+    sorted_features = sorted([(f, v) for f, v in importance.items() if v > 0], key=lambda x: x[1], reverse=True)
 
-# -------------------
-# User Input 
-# -------------------
-st.subheader("Enter Your Details for Prediction")
-user_inputs = {}
+    # -------------------
+    # User Input (top numeric features)
+    # -------------------
+    st.subheader("Enter Your Details for Prediction")
+    user_inputs = {}
+    numeric_top5 = []
+    for f, _ in sorted_features:
+        if f in numeric_cols:  # only numeric
+            numeric_top5.append(f)
+        if len(numeric_top5) >= 5:
+            break
 
-# Only numeric features (remove essential categoricals)
-numeric_top5 = []
-for f, _ in sorted_features:
-    # Skip categorical features
-    if any(f == cat or f.startswith(cat + "_") for cat in categorical_cols):
-        continue
-    numeric_top5.append(f)
-    if len(numeric_top5) >= 5:
-        break
+    for f in numeric_top5:
+        key = f"userinput_{f}"
+        if f == "Age":
+            user_inputs[f] = st.slider("Age", 18, 80, 30, key=key)
+        elif f == "Sleep Duration":
+            user_inputs[f] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0, key=key)
+        elif f == "Quality of Sleep":
+            user_inputs[f] = st.slider("Quality of Sleep (1-10)", 1, 10, 7, key=key)
+        elif f == "Physical Activity Level":
+            user_inputs[f] = st.slider("Physical Activity (min/day)", 0, 300, 30, key=key)
+        elif f == "Stress Level":
+            user_inputs[f] = st.slider("Stress Level (1-10)", 1, 10, 5, key=key)
+        elif f == "Heart Rate":
+            user_inputs[f] = st.slider("Heart Rate (bpm)", 40, 120, 70, key=key)
+        elif f == "Systolic":
+            user_inputs[f] = st.slider("Systolic BP", 90, 180, 120, key=key)
+        elif f == "Diastolic":
+            user_inputs[f] = st.slider("Diastolic BP", 60, 120, 80, key=key)
+        elif f == "Daily Steps":
+            user_inputs[f] = st.slider("Daily Steps", 0, 20000, 5000, key=key)
+        else:
+            min_val, max_val, mean_val = df_encoded[f].min(), df_encoded[f].max(), df_encoded[f].mean()
+            user_inputs[f] = st.slider(f, float(min_val), float(max_val), float(mean_val), key=key)
 
-# Create widgets for top numeric features
-for f in numeric_top5:
-    key = f"inp_{f}"
-    if f == "Age":
-        user_inputs[f] = st.slider("Age", 18, 80, 30, key=key)
-    elif f == "Sleep Duration":
-        user_inputs[f] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0, key=key)
-    elif f == "Quality of Sleep":
-        user_inputs[f] = st.slider("Quality of Sleep (low to high)", 1, 10, 7, key=key)
-    elif f == "Physical Activity Level":
-        user_inputs[f] = st.slider("Physical Activity (min per day)", 0, 300, 30, key=key)
-    elif f == "Stress Level":
-        user_inputs[f] = st.slider("Stress Level *low to high)", 1, 10, 5, key=key)
-    elif f == "Heart Rate":
-        user_inputs[f] = st.slider("Heart Rate (bpm)", 40, 120, 70, key=key)
-    elif f == "Systolic":
-        user_inputs[f] = st.slider("Systolic BP", 90, 180, 120, key=key)
-    elif f == "Diastolic":
-        user_inputs[f] = st.slider("Diastolic BP", 60, 120, 80, key=key)
-    elif f == "Daily Steps":
-        user_inputs[f] = st.slider("Daily Steps", 0, 20000, 5000, key=key)
-    else:
-        # Generic numeric slider
-        min_val = float(df_encoded[f].min())
-        max_val = float(df_encoded[f].max())
-        mean_val = float(df_encoded[f].mean())
-        user_inputs[f] = st.slider(f, min_val, max_val, mean_val, key=key)
+    input_df = pd.DataFrame([user_inputs])
+    input_encoded = input_df.copy()
+    for col in features:
+        if col not in input_encoded.columns:
+            input_encoded[col] = df_encoded[col].mean() if col in numeric_cols else 0
+    input_encoded = input_encoded[features]
 
-# Convert to DataFrame
-input_df = pd.DataFrame([user_inputs])
+    # -------------------
+    # Prediction
+    # -------------------
+    if st.button("\u2705 Predict Sleep Disorder", key="predict_button"):
+        X_new = scaler.transform(input_encoded)
+        pred_class = le.inverse_transform(model.predict(X_new))[0]
 
-# No categorical encoding needed as we removed them
-input_encoded = input_df[numeric_top5]
+        if pred_class == "None":
+            pred_class = "Normal Sleep"
 
-# Ensure all features required by the model exist
-for col in features:
-    if col not in input_encoded.columns:
-        input_encoded[col] = df_encoded[col].mean() if col in numeric_cols else 0
+        advice = {
+            "Normal Sleep": "Your sleep pattern looks healthy.",
+            "Insomnia": "You may experience insomnia. Improve sleep hygiene.",
+            "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation."
+        }
 
-input_encoded = input_encoded[features]
-
-# -------------------
-# Prediction
-# -------------------
-if st.button("\u2705 Predict Sleep Disorder"):
-    X_new = scaler.transform(input_encoded)
-    pred_class = le.inverse_transform(model.predict(X_new))[0]
-
-    if pred_class == "None":
-        pred_class = "Normal Sleep"
-
-    advice = {
-        "Normal Sleep": "Your sleep pattern looks healthy.",
-        "Insomnia": "You may experience insomnia. Establish a consistent sleep schedule, make your bedroom dark, quiet, and cool, and avoid stimulants like caffeine and nicotine close to bedtime. Regular exercise during the day is helpful, but avoid intense workouts near bedtime. If you can't sleep after about 20 minutes, get out of bed and do a relaxing activity until you feel sleepy again. ",
-        "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation. try lifestyle changes like losing weight, exercising, avoiding alcohol and sedatives, and sleeping on your side instead of your back."
-    }
-
-    st.subheader("\U0001F50E Prediction Result")
-    st.success(f"Sleep Disorder: **{pred_class}**")
-    st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
-
-# -------------------
-# Prediction
-# -------------------
-if st.button("\u2705 Predict Sleep Disorder"):
-    X_new = scaler.transform(input_encoded)
-    pred_class = le.inverse_transform(model.predict(X_new))[0]
-
-    if pred_class == "None":
-        pred_class = "Normal Sleep"
-
-    advice = {
-        "Normal Sleep": "Your sleep pattern looks healthy.",
-        "Insomnia": "You may experience insomnia. Establish a consistent sleep schedule, make your bedroom dark, quiet, and cool, and avoid stimulants like caffeine and nicotine close to bedtime. Regular exercise during the day is helpful, but avoid intense workouts near bedtime. If you can't sleep after about 20 minutes, get out of bed and do a relaxing activity until you feel sleepy again. ",
-        "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation. try lifestyle changes like losing weight, exercising, avoiding alcohol and sedatives, and sleeping on your side instead of your back."
-    }
-
-    st.subheader("\U0001F50E Prediction Result")
-    st.success(f"Sleep Disorder: **{pred_class}**")
-    st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
+        st.subheader("\U0001F50E Prediction Result")
+        st.success(f"Sleep Disorder: **{pred_class}**")
+        st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
