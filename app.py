@@ -492,81 +492,81 @@ elif page == "Prediction":
                              key=lambda x: x[1], reverse=True)
 
    # -------------------
-# User Input (Top 5 unique features, cached per model)
-# -------------------
-st.subheader("Enter Your Details for Prediction")
-user_inputs = {}
+   # User Input (Top 5 unique features, cached per model)
+   # -------------------
+   st.subheader("Enter Your Details for Prediction")
+   user_inputs = {}
 
-# Cache top 5 features per model choice
-cache_key = f"top5_{model_choice}"
-if cache_key not in st.session_state:
-    top5_features = []
-    for f, _ in sorted_features:
-        # Skip categorical one-hot and duplicates
-        if f in categorical_cols or any(f.startswith(cat + "_") for cat in categorical_cols):
-            continue
-        if f not in top5_features:
-            top5_features.append(f)
-        if len(top5_features) >= 5:
-            break
-    st.session_state[cache_key] = top5_features
+   # Cache top 5 features per model choice
+   cache_key = f"top5_{model_choice}"
+   if cache_key not in st.session_state:
+       top5_features = []
+       for f, _ in sorted_features:
+           # Skip categorical one-hot and duplicates
+           if f in categorical_cols or any(f.startswith(cat + "_") for cat in categorical_cols):
+               continue
+           if f not in top5_features:
+               top5_features.append(f)
+           if len(top5_features) >= 5:
+               break
+       st.session_state[cache_key] = top5_features
 
-# Use cached list for this model
-top5_features = st.session_state[cache_key]
+   # Use cached list for this model
+   top5_features = st.session_state[cache_key]
 
-# Create widgets for those 5 features
-for f in top5_features:
-    key = f"inp_{f}"
-    if f == "Age":
-        user_inputs[f] = st.slider("Age (years)", 18, 80, 30, key=key)
-    elif f == "Sleep Duration":
-        user_inputs[f] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0, key=key)
-    elif f == "Quality of Sleep":
-        user_inputs[f] = st.slider("Quality of Sleep (1–10)", 1, 10, 7, key=key)
-    elif f == "Stress Level":
-        user_inputs[f] = st.slider("Stress Level (1–10)", 1, 10, 5, key=key)
-    elif f == "Daily Steps":
-        user_inputs[f] = st.slider("Daily Steps (count)", 0, 20000, 5000, key=key)
-    elif f == "Physical Activity Level":
-        user_inputs[f] = st.slider("Physical Activity Level (minutes)", 0, 300, 60, key=key)
-    elif f == "Systolic":
-        user_inputs[f] = st.slider("Systolic Blood Pressure (mmHg)", 90, 200, 120, key=key)
-    elif f == "Diastolic":
-        user_inputs[f] = st.slider("Diastolic Blood Pressure (mmHg)", 60, 130, 80, key=key)
-    else:
-        min_val = float(df_encoded[f].min())
-        max_val = float(df_encoded[f].max())
-        mean_val = float(df_encoded[f].mean())
-        user_inputs[f] = st.slider(f"{f} (units)", min_val, max_val, mean_val, key=key)
+   # Create widgets for those 5 features
+   for f in top5_features:
+       key = f"inp_{f}"
+       if f == "Age":
+           user_inputs[f] = st.slider("Age (years)", 18, 80, 30, key=key)
+       elif f == "Sleep Duration":
+           user_inputs[f] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0, key=key)
+       elif f == "Quality of Sleep":
+           user_inputs[f] = st.slider("Quality of Sleep (1–10)", 1, 10, 7, key=key)
+       elif f == "Stress Level":
+           user_inputs[f] = st.slider("Stress Level (1–10)", 1, 10, 5, key=key)
+       elif f == "Daily Steps":
+          user_inputs[f] = st.slider("Daily Steps (count)", 0, 20000, 5000, key=key)
+       elif f == "Physical Activity Level":
+           user_inputs[f] = st.slider("Physical Activity Level (minutes)", 0, 300, 60, key=key)
+       elif f == "Systolic":
+           user_inputs[f] = st.slider("Systolic Blood Pressure (mmHg)", 90, 200, 120, key=key)
+       elif f == "Diastolic":
+           user_inputs[f] = st.slider("Diastolic Blood Pressure (mmHg)", 60, 130, 80, key=key)
+       else:
+           min_val = float(df_encoded[f].min())
+           max_val = float(df_encoded[f].max())
+           mean_val = float(df_encoded[f].mean())
+           user_inputs[f] = st.slider(f"{f} (units)", min_val, max_val, mean_val, key=key)
 
-# -------------------
-# Convert to DataFrame (outside the loop!)
-# -------------------
-input_df = pd.DataFrame([user_inputs])
+   # -------------------
+   # Convert to DataFrame (outside the loop!)
+   # -------------------
+   input_df = pd.DataFrame([user_inputs])
 
-# Ensure all features required by the model exist
-for col in features:
-    if col not in input_df.columns:
-        input_df[col] = df_encoded[col].mean() if col in numeric_cols else 0
+   # Ensure all features required by the model exist
+   for col in features:
+       if col not in input_df.columns:
+           input_df[col] = df_encoded[col].mean() if col in numeric_cols else 0
 
-input_encoded = input_df[features]
+   input_encoded = input_df[features]
 
-# -------------------
-# Prediction button (outside the loop!)
-# -------------------
-if st.button("\u2705 Predict Sleep Disorder"):
-    X_new = scaler.transform(input_encoded)
-    pred_class = le.inverse_transform(model.predict(X_new))[0]
+   # -------------------
+   # Prediction button (outside the loop!)
+   # -------------------
+   if st.button("\u2705 Predict Sleep Disorder"):
+       X_new = scaler.transform(input_encoded)
+       pred_class = le.inverse_transform(model.predict(X_new))[0]
 
-    if pred_class == "None":
-        pred_class = "Normal Sleep"
+       if pred_class == "None":
+           pred_class = "Normal Sleep"
 
-    advice = {
-        "Normal Sleep": "Your sleep pattern looks healthy.",
-        "Insomnia": "You may experience insomnia. Establish a consistent sleep schedule, make your bedroom dark, quiet, and cool, and avoid stimulants like caffeine and nicotine close to bedtime.",
-        "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation. Try lifestyle changes like losing weight, exercising, avoiding alcohol and sedatives, and sleeping on your side instead of your back."
-    }
+       advice = {
+           "Normal Sleep": "Your sleep pattern looks healthy.",
+           "Insomnia": "You may experience insomnia. Establish a consistent sleep schedule, make your bedroom dark, quiet, and cool, and avoid stimulants like caffeine and nicotine close to bedtime.",
+           "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation. Try lifestyle changes like losing weight, exercising, avoiding alcohol and sedatives, and sleeping on your side instead of your back."
+       }
 
-    st.subheader("\U0001F50E Prediction Result")
-    st.success(f"Sleep Disorder: **{pred_class}**")
-    st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
+       st.subheader("\U0001F50E Prediction Result")
+       st.success(f"Sleep Disorder: **{pred_class}**")
+       st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
