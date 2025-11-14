@@ -466,18 +466,26 @@ top5_features = st.session_state[cache_key]
 for f in top5_features:
     key = f"inp_{f}"
     if f == "Age":
-        user_inputs[f] = st.slider("Age", 18, 80, 30, key=key)
+        user_inputs[f] = st.slider("Age (years)", 18, 80, 30, key=key)
     elif f == "Sleep Duration":
         user_inputs[f] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0, key=key)
     elif f == "Quality of Sleep":
-        user_inputs[f] = st.slider("Quality of Sleep (low to high)", 1, 10, 7, key=key)
+        user_inputs[f] = st.slider("Quality of Sleep (1–10)", 1, 10, 7, key=key)
     elif f == "Stress Level":
-        user_inputs[f] = st.slider("Stress Level (low to high)", 1, 10, 5, key=key)
+        user_inputs[f] = st.slider("Stress Level (1–10)", 1, 10, 5, key=key)
+    elif f == "Daily Steps":
+        user_inputs[f] = st.slider("Daily Steps (count)", 0, 20000, 5000, key=key)
+    elif f == "Physical Activity Level":
+        user_inputs[f] = st.slider("Physical Activity Level (minutes)", 0, 300, 60, key=key)
+    elif f == "Systolic":
+        user_inputs[f] = st.slider("Systolic Blood Pressure (mmHg)", 90, 200, 120, key=key)
+    elif f == "Diastolic":
+        user_inputs[f] = st.slider("Diastolic Blood Pressure (mmHg)", 60, 130, 80, key=key)
     else:
         min_val = float(df_encoded[f].min())
         max_val = float(df_encoded[f].max())
         mean_val = float(df_encoded[f].mean())
-        user_inputs[f] = st.slider(f, min_val, max_val, mean_val, key=key)
+        user_inputs[f] = st.slider(f"{f} (units)", min_val, max_val, mean_val, key=key)
 
 # -------------------
 # Convert to DataFrame (outside the loop!)
