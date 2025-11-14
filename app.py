@@ -472,45 +472,42 @@ elif page == "Prediction":
     st.plotly_chart(fig_feat, use_container_width=True)
 
 # -------------------
-# User Input Panel
+# User Input Panel (Top 5 features)
 # -------------------
 st.subheader("Enter Your Details for Prediction")
 
 input_values = {}
 
-# Essential categorical features (always shown)
+# Always include essential categorical features
 essential_cats = ["Gender", "BMI Category"]
 if "Occupation" in categorical_cols:
     essential_cats.append("Occupation")
 
-# Track numeric features from feature importance
+# Determine numeric features from feature importance
 numeric_top = []
 added_cats = set()
-
 for feat, _ in sorted_importance:
-    base = None
+    base_cat = None
     for cat in categorical_cols:
         if feat.startswith(cat + "_"):
-            base = cat
+            base_cat = cat
             break
-
-    if base:
-        if base not in added_cats:
-            added_cats.add(base)
+    if base_cat:
+        if base_cat not in added_cats:
+            added_cats.add(base_cat)
     else:
         numeric_top.append(feat)
-
-    # Stop when we have 5 inputs total including essential categoricals
-    if len(numeric_top) + len(essential_cats) >= 5:
+    if len(numeric_top) >= 5:  # Limit numeric inputs to top 5
         break
 
-final_inputs = essential_cats + numeric_top[: 5 - len(essential_cats)]
+# Final features to display
+final_inputs = essential_cats + numeric_top
 
-# Generate input widgets
+# Create widgets
 for f in final_inputs:
     key = f"inp_{f}"
 
-    # Categorical widgets
+    # Categorical features
     if f == "Gender":
         input_values[f] = st.selectbox("Gender", ["Male", "Female"], key=key)
     elif f == "BMI Category":
@@ -518,19 +515,19 @@ for f in final_inputs:
             "BMI Category", ["Underweight", "Normal", "Overweight", "Obese"], key=key
         )
     elif f == "Occupation":
-        input_values[f] = st.selectbox(
-            "Occupation", sorted(df_pred["Occupation"].dropna().unique()), key=key
-        )
+        unique_occ = sorted(df_pred["Occupation"].dropna().unique())
+        input_values[f] = st.selectbox("Occupation", unique_occ, key=key)
+
+    # Numeric features with sliders (like old code)
     else:
-        # Numeric sliders
         if f == "Age":
-            input_values[f] = st.slider("Age (years)", 18, 80, 25, key=key)
+            input_values[f] = st.slider("Age (years)", 18, 80, 30, key=key)
         elif f == "Sleep Duration":
             input_values[f] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0, key=key)
         elif f == "Quality of Sleep":
-            input_values[f] = st.slider("Sleep Quality (1-10)", 1, 10, 7, key=key)
+            input_values[f] = st.slider("Quality of Sleep (1-10)", 1, 10, 7, key=key)
         elif f == "Physical Activity Level":
-            input_values[f] = st.slider("Physical Activity Level (min/day)", 0, 300, 30, key=key)
+            input_values[f] = st.slider("Physical Activity (min/day)", 0, 300, 30, key=key)
         elif f == "Stress Level":
             input_values[f] = st.slider("Stress Level (1-10)", 1, 10, 5, key=key)
         elif f == "Heart Rate":
@@ -542,14 +539,17 @@ for f in final_inputs:
         elif f == "Daily Steps":
             input_values[f] = st.slider("Daily Steps", 0, 20000, 5000, key=key)
         else:
-            input_values[f] = st.slider(f, 0, 100, 0, key=key)
+            # Generic numeric input if unknown feature
+            input_values[f] = st.number_input(f, min_value=0.0, max_value=300.0, value=0.0, key=key)
 
-# Convert input to DataFrame
+# Convert user input to DataFrame
 input_df = pd.DataFrame([input_values])
 
 # One-hot encode categorical inputs
 input_encoded = pd.get_dummies(
-    input_df, columns=[c for c in categorical_cols if c in input_df.columns], drop_first=True
+    input_df,
+    columns=[c for c in categorical_cols if c in input_df.columns],
+    drop_first=True
 )
 
 # Ensure all model features exist
@@ -560,7 +560,7 @@ for col in features:
 input_encoded = input_encoded[features]
 
 # -------------------
-# Final Prediction
+# Final Prediction Button
 # -------------------
 if st.button("\u2705 Predict Sleep Disorder"):
     X_new = scaler.transform(input_encoded)
@@ -570,13 +570,14 @@ if st.button("\u2705 Predict Sleep Disorder"):
         pred_class = "Normal Sleep"
 
     advice = {
-        "Normal Sleep": "Your sleep pattern looks healthy. Keep maintaining good habits.",
+        "Normal Sleep": "Your sleep pattern looks healthy. Keep good habits.",
         "Insomnia": "You may experience insomnia. Improve sleep hygiene and manage stress.",
-        "Sleep Apnea": "Possible sleep apnea. Consider medical evaluation if symptoms continue."
+        "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation if symptoms persist."
     }
 
     st.subheader("\U0001F50E Prediction Result")
     st.success(f"Sleep Disorder: **{pred_class}**")
     st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
+
 
 
