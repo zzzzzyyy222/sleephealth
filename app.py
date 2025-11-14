@@ -344,18 +344,6 @@ elif page == "Prediction":
     df_pred["Sleep Disorder"] = df_pred["Sleep Disorder"].fillna("None")
     df_pred = df_pred.drop(columns=["Person ID"])
 
-    # Group occupations into broader categories
-    occupation_map = {
-        "Doctor": "Healthcare", "Nurse": "Healthcare", "Pharmacist": "Healthcare",
-        "Teacher": "Education", "Lecturer": "Education",
-        "Engineer": "Technical/Engineering", "Developer": "Technical/Engineering", "Technician": "Technical/Engineering",
-        "Salesman": "Sales/Marketing", "Marketer": "Sales/Marketing",
-        "Manager": "Management", "Executive": "Management",
-        "Student": "Student", "Retired": "Non-Working", "Unemployed": "Non-Working"
-    }
-    df_pred["Occupation_Group"] = df_pred["Occupation"].map(occupation_map).fillna("Other")
-    df_pred = df_pred.drop(columns=["Occupation"])
-
     # Split Blood Pressure if exists
     if "Blood Pressure" in df_pred.columns:
         bp_split = df_pred["Blood Pressure"].str.split("/", expand=True).astype(float)
@@ -363,11 +351,11 @@ elif page == "Prediction":
         df_pred["Diastolic"] = bp_split[1]
         df_pred = df_pred.drop(columns=["Blood Pressure"])
 
-    # Categorical columns (now includes Occupation_Group)
-    categorical_cols = ["Gender", "BMI Category", "Occupation_Group"]
+    # Categorical columns
+    categorical_cols = ["Gender", "BMI Category", "Occupation"]
     df_encoded = pd.get_dummies(df_pred, columns=categorical_cols, drop_first=True)
 
-    # Fill numeric NaNs before scaling
+    # Fill numeric NaNs
     numeric_cols = df_encoded.select_dtypes(include=[np.number]).columns.tolist()
     df_encoded[numeric_cols] = df_encoded[numeric_cols].fillna(df_encoded[numeric_cols].mean())
 
@@ -388,13 +376,16 @@ elif page == "Prediction":
     X = scaler.fit_transform(X_full)
 
     # Train-test split
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
 
     # -------------------
     # SMOTE
     # -------------------
     st.subheader("\U0001F4CA Class Balancing (SMOTE Option)")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True)
+
     y_before_counts = Counter(y_train)
     if balance:
         smote = SMOTE(random_state=42)
@@ -403,13 +394,15 @@ elif page == "Prediction":
     else:
         st.info("Oversampling not applied.")
 
+    # Class distribution chart
     if balance:
         y_after_counts = Counter(y_train)
         df_balance = pd.DataFrame({
             "Class": list(le.classes_) * 2,
             "Count": [y_before_counts.get(i, 0) for i in range(len(le.classes_))] +
                      [y_after_counts.get(i, 0) for i in range(len(le.classes_))],
-            "Stage": ["Before SMOTE"] * len(le.classes_) + ["After SMOTE"] * len(le.classes_)
+            "Stage": ["Before SMOTE"] * len(le.classes_) +
+                     ["After SMOTE"] * len(le.classes_)
         })
         fig_balance = px.bar(
             df_balance,
@@ -450,11 +443,15 @@ elif page == "Prediction":
     # -------------------
     # Evaluation metrics
     # -------------------
-    report_dict = classification_report(y_test, y_pred, target_names=le.classes_, output_dict=True)
+    report_dict = classification_report(
+        y_test, y_pred, target_names=le.classes_, output_dict=True
+    )
     report_df = pd.DataFrame(report_dict).transpose().round(2)
+
     st.subheader(f"{model_choice} Evaluation Metrics")
     st.markdown(f"- **Accuracy:** `{accuracy_score(y_test, y_pred):.2f}`")
     st.markdown(f"- **Classes:** `{', '.join(le.classes_)}`")
+
     with st.expander("\U0001F4D8 Classification Report"):
         st.dataframe(report_df)
 
@@ -470,6 +467,7 @@ elif page == "Prediction":
         importance = dict(zip(features, perm.importances_mean))
 
     sorted_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)
+
     fig_features = px.bar(
         x=[f[1] for f in sorted_features],
         y=[f[0] for f in sorted_features],
@@ -483,26 +481,28 @@ elif page == "Prediction":
     st.plotly_chart(fig_features, use_container_width=True)
 
     # -------------------
-    # User input for prediction
+    # User input based on feature importance (dynamic)
     # -------------------
     st.subheader("Enter your details for prediction")
     input_widgets = {}
-    top_features = [f[0] for f in sorted_features[:6]]
-    user_features = ["Gender", "BMI Category", "Occupation_Group"] + top_features
-    user_features = list(dict.fromkeys(user_features))
 
-    for feature in user_features:
+    # Only top N features (e.g., top 6) for input
+    top_features = [f[0] for f in sorted_features[:6]]
+
+    for feature in top_features:
         key = f"input_{feature}"
-        if feature == "Gender":
-            input_widgets[feature] = st.selectbox("Gender", ["Male", "Female"], key=key)
-        elif feature == "BMI Category":
-            input_widgets[feature] = st.selectbox(
+
+        # Categorical
+        if feature.startswith("Gender_"):
+            input_widgets["Gender"] = st.selectbox("Gender", ["Male", "Female"], key=key)
+        elif feature.startswith("BMI Category_"):
+            input_widgets["BMI Category"] = st.selectbox(
                 "BMI Category", ["Underweight", "Normal", "Overweight", "Obese"], key=key
             )
-        elif feature == "Occupation_Group":
-            input_widgets[feature] = st.selectbox(
-                "Occupation", df_pred["Occupation_Group"].unique(), key=key
-            )
+        elif feature.startswith("Occupation_"):
+            # Optional: dynamically get occupations from df
+            occupations = df["Occupation"].dropna().unique().tolist()
+            input_widgets["Occupation"] = st.selectbox("Occupation", occupations, key=key)
         else:
             # Numeric sliders
             if feature == "Age":
@@ -528,19 +528,15 @@ elif page == "Prediction":
 
     input_df = pd.DataFrame([input_widgets])
 
-    # Encode categorical
-    present_categoricals = [col for col in categorical_cols if col in input_df.columns]
-    input_encoded = pd.get_dummies(input_df, columns=present_categoricals, drop_first=True)
-
-    # Ensure all model-required columns exist
+    # Encode categorical if present
+    input_encoded = pd.get_dummies(input_df)
     for col in features:
         if col not in input_encoded.columns:
             input_encoded[col] = 0
-
     input_encoded = input_encoded[features]
 
     # -------------------
-    # Make prediction
+    # Prediction
     # -------------------
     if st.button("\u2705 Predict Sleep Disorder", key="predict_button"):
         input_scaled = scaler.transform(input_encoded)
@@ -559,5 +555,3 @@ elif page == "Prediction":
         st.subheader("\U0001F50E Prediction Result")
         st.success(f"Predicted Sleep Disorder: {prediction}")
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice.get(prediction, 'No advice available.')}")
-
-
