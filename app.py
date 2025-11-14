@@ -433,13 +433,69 @@ elif page == "Prediction":
         model = DecisionTreeClassifier(class_weight=None if balance else "balanced")
     elif model_choice == "XGBoost":
         model = XGBClassifier(use_label_encoder=False, eval_metric="mlogloss")
-
+     
     # -------------------
     # Train model
     # -------------------
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
+    # -------------------
+# Classification Report
+# -------------------
+st.subheader("📊 Model Performance")
+
+# Generate classification report
+report = classification_report(
+    y_test, 
+    y_pred, 
+    target_names=le.classes_, 
+    output_dict=True
+)
+
+# Convert to DataFrame
+report_df = pd.DataFrame(report).transpose().reset_index()
+report_df = report_df.rename(columns={"index": "Class"})
+
+# Display table
+st.dataframe(
+    report_df.style
+        .format({
+            "precision": "{:.2f}", 
+            "recall": "{:.2f}", 
+            "f1-score": "{:.2f}", 
+            "support": "{:.0f}"
+        })
+        .background_gradient(cmap="Greens", subset=["f1-score"])
+)
+
+# Accuracy
+acc = accuracy_score(y_test, y_pred)
+st.metric("✔ Accuracy Score", f"{acc:.2f}")
+
+# -------------------
+# F1 Score Task Bar
+# -------------------
+st.subheader("📌 F1 Score by Class")
+
+f1_scores = report_df.set_index("Class")["f1-score"].dropna()
+
+fig_f1 = px.bar(
+    f1_scores,
+    x=f1_scores.values,
+    y=f1_scores.index,
+    orientation="h",
+    title="F1 Score per Class",
+    labels={"x": "F1 Score", "y": "Class"},
+    text=f1_scores.values,
+    color=f1_scores.values,
+    color_continuous_scale="Teal"
+)
+
+fig_f1.update_layout(xaxis_range=[0, 1])
+st.plotly_chart(fig_f1, use_container_width=True)
+
+    
     # -------------------
     # Feature importance
     # -------------------
