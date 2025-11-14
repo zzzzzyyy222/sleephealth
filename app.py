@@ -470,56 +470,65 @@ elif page == "Prediction":
     st.plotly_chart(fig_feat, use_container_width=True)
 
     # -------------------
-# User Input Panel based on Feature Importance
+# -------------------
+# User Input (top 5 features based on feature importance)
 # -------------------
 st.subheader("Enter Your Details for Prediction")
+user_inputs = {}
 
-input_values = {}
-
-# Keep track of added categoricals to avoid duplicates
-added_categoricals = set()
-
+# Only numeric features (remove essential categoricals)
+numeric_top5 = []
 for f, _ in sorted_features:
+    # Skip categorical features
+    if any(f == cat or f.startswith(cat + "_") for cat in categorical_cols):
+        continue
+    numeric_top5.append(f)
+    if len(numeric_top5) >= 5:
+        break
+
+# Create widgets for top numeric features
+for f in numeric_top5:
     key = f"inp_{f}"
-
-    # Check if feature is derived from categorical
-    orig_cat = None
-    for cat in categorical_cols:
-        if f == cat or f.startswith(cat + "_"):
-            orig_cat = cat
-            break
-
-    if orig_cat:
-        # Only add categorical once
-        if orig_cat in added_categoricals:
-            continue
-        added_categoricals.add(orig_cat)
-        # Create selectbox from original df_pred
-        unique_vals = sorted(df_pred[orig_cat].dropna().unique())
-        input_values[f] = st.selectbox(orig_cat, unique_vals, key=key)
+    if f == "Age":
+        user_inputs[f] = st.slider("Age", 18, 80, 30, key=key)
+    elif f == "Sleep Duration":
+        user_inputs[f] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0, key=key)
+    elif f == "Quality of Sleep":
+        user_inputs[f] = st.slider("Quality of Sleep", 1, 10, 7, key=key)
+    elif f == "Physical Activity Level":
+        user_inputs[f] = st.slider("Physical Activity (min/day)", 0, 300, 30, key=key)
+    elif f == "Stress Level":
+        user_inputs[f] = st.slider("Stress Level", 1, 10, 5, key=key)
+    elif f == "Heart Rate":
+        user_inputs[f] = st.slider("Heart Rate (bpm)", 40, 120, 70, key=key)
+    elif f == "Systolic":
+        user_inputs[f] = st.slider("Systolic BP", 90, 180, 120, key=key)
+    elif f == "Diastolic":
+        user_inputs[f] = st.slider("Diastolic BP", 60, 120, 80, key=key)
+    elif f == "Daily Steps":
+        user_inputs[f] = st.slider("Daily Steps", 0, 20000, 5000, key=key)
     else:
-        # Numeric feature: use df_encoded to get min, max, mean
+        # Generic numeric slider
         min_val = float(df_encoded[f].min())
         max_val = float(df_encoded[f].max())
         mean_val = float(df_encoded[f].mean())
-        input_values[f] = st.slider(f, min_val, max_val, mean_val, key=key)
+        user_inputs[f] = st.slider(f, min_val, max_val, mean_val, key=key)
 
 # Convert to DataFrame
-input_df = pd.DataFrame([input_values])
+input_df = pd.DataFrame([user_inputs])
 
-# One-hot encode categorical inputs
-present_cats = [col for col in categorical_cols if col in input_df.columns]
-input_encoded = pd.get_dummies(input_df, columns=present_cats, drop_first=True)
+# No categorical encoding needed as we removed them
+input_encoded = input_df[numeric_top5]
 
 # Ensure all features required by the model exist
 for col in features:
     if col not in input_encoded.columns:
-        input_encoded[col] = 0
+        input_encoded[col] = df_encoded[col].mean() if col in numeric_cols else 0
 
 input_encoded = input_encoded[features]
 
 # -------------------
-# Final Prediction
+# Prediction
 # -------------------
 if st.button("\u2705 Predict Sleep Disorder"):
     X_new = scaler.transform(input_encoded)
