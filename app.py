@@ -503,6 +503,20 @@ for col in features:
 
 input_encoded = input_df[features]
 
+
+# Convert to DataFrame
+input_df = pd.DataFrame([user_inputs])
+
+# No categorical encoding needed as we removed them
+input_encoded = input_df[numeric_top5]
+
+# Ensure all features required by the model exist
+for col in features:
+    if col not in input_encoded.columns:
+        input_encoded[col] = df_encoded[col].mean() if col in numeric_cols else 0
+
+input_encoded = input_encoded[features]
+
 # -------------------
 # Prediction
 # -------------------
