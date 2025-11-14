@@ -457,82 +457,87 @@ elif page == "Prediction":
     important_features = [f for f, val in importance.items() if val > 0]
     sorted_features = sorted([(f, importance[f]) for f in important_features], key=lambda x: x[1], reverse=True)
 
-# -------------------
-# User Input (Top 5 Features)
-# -------------------
-st.subheader("Enter Your Details for Prediction")
-user_inputs = {}
+    # -------------------
+    # User Input 
+    # -------------------
+    st.subheader("Enter Your Details for Prediction")
+    user_inputs = {}
 
-# Take the top 5 features from importance ranking
-top5_features = [f for f, _ in sorted_features[:5]]
+    # Handle categorical inputs separately
+    if "Occupation" in categorical_cols:
+        occupations = df_pred["Occupation"].dropna().unique().tolist()
+        user_inputs["Occupation"] = st.selectbox("Occupation", occupations)
 
-for f in top5_features:
-    key = f"inp_{f}"
-    if f == "Age":
-        user_inputs[f] = st.slider("Age", 18, 80, 30, key=key)
-    elif f == "Sleep Duration":
-        user_inputs[f] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0, key=key)
-    elif f == "Quality of Sleep":
-        user_inputs[f] = st.slider("Quality of Sleep (low to high)", 1, 10, 7, key=key)
-    elif f == "Physical Activity Level":
-        user_inputs[f] = st.slider("Physical Activity (min per day)", 0, 300, 30, key=key)
-    elif f == "Stress Level":
-        user_inputs[f] = st.slider("Stress Level (low to high)", 1, 10, 5, key=key)
-    elif f == "Heart Rate":
-        user_inputs[f] = st.slider("Heart Rate (bpm)", 40, 120, 70, key=key)
-    elif f == "Systolic":
-        user_inputs[f] = st.slider("Systolic BP", 90, 180, 120, key=key)
-    elif f == "Diastolic":
-        user_inputs[f] = st.slider("Diastolic BP", 60, 120, 80, key=key)
-    elif f == "Daily Steps":
-        user_inputs[f] = st.slider("Daily Steps", 0, 20000, 5000, key=key)
-    else:
-        # Generic numeric slider for any other feature
-        min_val = float(df_encoded[f].min())
-        max_val = float(df_encoded[f].max())
-        mean_val = float(df_encoded[f].mean())
-        user_inputs[f] = st.slider(f, min_val, max_val, mean_val, key=key)
+    if "Gender" in categorical_cols:
+        user_inputs["Gender"] = st.selectbox("Gender", df_pred["Gender"].dropna().unique().tolist())
 
-# Convert to DataFrame
-input_df = pd.DataFrame([user_inputs])
+    if "BMI Category" in categorical_cols:
+        user_inputs["BMI Category"] = st.selectbox("BMI Category", df_pred["BMI Category"].dropna().unique().tolist())
 
-# Ensure all features required by the model exist
-for col in features:
-    if col not in input_df.columns:
-        input_df[col] = df_encoded[col].mean() if col in numeric_cols else 0
+    # Top 5 numeric features only
+    numeric_top5 = []
+    for f, _ in sorted_features:
+        if f in categorical_cols or any(f.startswith(cat + "_") for cat in categorical_cols):
+            continue
+        numeric_top5.append(f)
+        if len(numeric_top5) >= 5:
+            break
 
-input_encoded = input_df[features]
+    for f in numeric_top5:
+        key = f"inp_{f}"
+        if f == "Age":
+            user_inputs[f] = st.slider("Age", 18, 80, 30, key=key)
+        elif f == "Sleep Duration":
+            user_inputs[f] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0, key=key)
+        elif f == "Quality of Sleep":
+            user_inputs[f] = st.slider("Quality of Sleep (low to high)", 1, 10, 7, key=key)
+        elif f == "Physical Activity Level":
+            user_inputs[f] = st.slider("Physical Activity (min per day)", 0, 300, 30, key=key)
+        elif f == "Stress Level":
+            user_inputs[f] = st.slider("Stress Level (low to high)", 1, 10, 5, key=key)
+        elif f == "Heart Rate":
+            user_inputs[f] = st.slider("Heart Rate (bpm)", 40, 120, 70, key=key)
+        elif f == "Systolic":
+            user_inputs[f] = st.slider("Systolic BP", 90, 180, 120, key=key)
+        elif f == "Diastolic":
+            user_inputs[f] = st.slider("Diastolic BP", 60, 120, 80, key=key)
+        elif f == "Daily Steps":
+            user_inputs[f] = st.slider("Daily Steps", 0, 20000, 5000, key=key)
+        else:
+            min_val = float(df_encoded[f].min())
+            max_val = float(df_encoded[f].max())
+            mean_val = float(df_encoded[f].mean())
+            user_inputs[f] = st.slider(f, min_val, max_val, mean_val, key=key)
 
+    # Convert to DataFrame
+    input_df = pd.DataFrame([user_inputs])
 
-# Convert to DataFrame
-input_df = pd.DataFrame([user_inputs])
+    # Apply same encoding as training
+    input_encoded = pd.get_dummies(input_df, columns=categorical_cols, drop_first=True)
 
-# No categorical encoding needed as we removed them
-input_encoded = input_df[numeric_top5]
+    # Ensure all features exist
+    for col in features:
+        if col not in input_encoded.columns:
+            input_encoded[col] = df_encoded[col].mean() if col in numeric_cols else 0
 
-# Ensure all features required by the model exist
-for col in features:
-    if col not in input_encoded.columns:
-        input_encoded[col] = df_encoded[col].mean() if col in numeric_cols else 0
+    input_encoded = input_encoded[features]
 
-input_encoded = input_encoded[features]
+   # -------------------
+   # Prediction
+   # -------------------
+    if st.button("\u2705 Predict Sleep Disorder"):
+        X_new = scaler.transform(input_encoded)
+        pred_class = le.inverse_transform(model.predict(X_new))[0]
 
-# -------------------
-# Prediction
-# -------------------
-if st.button("\u2705 Predict Sleep Disorder"):
-    X_new = scaler.transform(input_encoded)
-    pred_class = le.inverse_transform(model.predict(X_new))[0]
+        if pred_class == "None":
+            pred_class = "Normal Sleep"
 
-    if pred_class == "None":
-        pred_class = "Normal Sleep"
+        advice = {
+            "Normal Sleep": "Your sleep pattern looks healthy.",
+            "Insomnia": "You may experience insomnia. Establish a consistent sleep schedule, make your bedroom dark, quiet, and cool, and avoid stimulants like caffeine and nicotine close to bedtime. Regular exercise during the day is helpful, but avoid intense workouts near bedtime. If you can't sleep after about 20 minutes, get out of bed and do a relaxing activity until you feel sleepy again. ",
+            "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation. try lifestyle changes like losing weight, exercising, avoiding alcohol and sedatives, and sleeping on your side instead of your back."
+        }
 
-    advice = {
-        "Normal Sleep": "Your sleep pattern looks healthy.",
-        "Insomnia": "You may experience insomnia. Establish a consistent sleep schedule, make your bedroom dark, quiet, and cool, and avoid stimulants like caffeine and nicotine close to bedtime. Regular exercise during the day is helpful, but avoid intense workouts near bedtime. If you can't sleep after about 20 minutes, get out of bed and do a relaxing activity until you feel sleepy again. ",
-        "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation. try lifestyle changes like losing weight, exercising, avoiding alcohol and sedatives, and sleeping on your side instead of your back."
-    }
-
-    st.subheader("\U0001F50E Prediction Result")
-    st.success(f"Sleep Disorder: **{pred_class}**")
-    st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
+        st.subheader("\U0001F50E Prediction Result")
+        st.success(f"Sleep Disorder: **{pred_class}**")
+        st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
