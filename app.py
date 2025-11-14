@@ -439,7 +439,7 @@ elif page == "Prediction":
     sorted_features = sorted([(f, importance[f]) for f in importance if importance[f] > 0],
                              key=lambda x: x[1], reverse=True)
 
-    # -------------------
+   # -------------------
 # User Input (Top 5 unique features, cached per model)
 # -------------------
 st.subheader("Enter Your Details for Prediction")
@@ -479,36 +479,34 @@ for f in top5_features:
         mean_val = float(df_encoded[f].mean())
         user_inputs[f] = st.slider(f, min_val, max_val, mean_val, key=key)
 
-   
-   
+# -------------------
+# Convert to DataFrame (outside the loop!)
+# -------------------
+input_df = pd.DataFrame([user_inputs])
 
-    # Convert to DataFrame
-    input_df = pd.DataFrame([user_inputs])
+# Ensure all features required by the model exist
+for col in features:
+    if col not in input_df.columns:
+        input_df[col] = df_encoded[col].mean() if col in numeric_cols else 0
 
-    # Ensure all features required by the model exist
-    for col in features:
-        if col not in input_df.columns:
-            input_df[col] = df_encoded[col].mean() if col in numeric_cols else 0
+input_encoded = input_df[features]
 
-    input_encoded = input_df[features]
+# -------------------
+# Prediction button (outside the loop!)
+# -------------------
+if st.button("\u2705 Predict Sleep Disorder"):
+    X_new = scaler.transform(input_encoded)
+    pred_class = le.inverse_transform(model.predict(X_new))[0]
 
-    # -------------------
-    # Prediction
-    # -------------------
-    if st.button("\u2705 Predict Sleep Disorder"):
-        X_new = scaler.transform(input_encoded)
-        pred_class = le.inverse_transform(model.predict(X_new))[0]
+    if pred_class == "None":
+        pred_class = "Normal Sleep"
 
-        if pred_class == "None":
-            pred_class = "Normal Sleep"
+    advice = {
+        "Normal Sleep": "Your sleep pattern looks healthy.",
+        "Insomnia": "You may experience insomnia. Establish a consistent sleep schedule, make your bedroom dark, quiet, and cool, and avoid stimulants like caffeine and nicotine close to bedtime.",
+        "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation. Try lifestyle changes like losing weight, exercising, avoiding alcohol and sedatives, and sleeping on your side instead of your back."
+    }
 
-        advice = {
-            "Normal Sleep": "Your sleep pattern looks healthy.",
-            "Insomnia": "You may experience insomnia. Establish a consistent sleep schedule, make your bedroom dark, quiet, and cool, and avoid stimulants like caffeine and nicotine close to bedtime.",
-            "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation. Try lifestyle changes like losing weight, exercising, avoiding alcohol and sedatives, and sleeping on your side instead of your back."
-        }
-
-        st.subheader("\U0001F50E Prediction Result")
-        st.success(f"Sleep Disorder: **{pred_class}**")
-        st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
-
+    st.subheader("\U0001F50E Prediction Result")
+    st.success(f"Sleep Disorder: **{pred_class}**")
+    st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
