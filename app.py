@@ -351,11 +351,11 @@ elif page == "Prediction":
         df_pred["Diastolic"] = bp_split[1]
         df_pred = df_pred.drop(columns=["Blood Pressure"])
 
-    # Categorical columns
+    # Categorical columns (no occupation)
     categorical_cols = ["Gender", "BMI Category", "Occupation"]
     df_encoded = pd.get_dummies(df_pred, columns=categorical_cols, drop_first=True)
 
-    # Fill numeric NaNs
+    # Fill numeric NaNs before scaling
     numeric_cols = df_encoded.select_dtypes(include=[np.number]).columns.tolist()
     df_encoded[numeric_cols] = df_encoded[numeric_cols].fillna(df_encoded[numeric_cols].mean())
 
@@ -394,7 +394,6 @@ elif page == "Prediction":
     else:
         st.info("Oversampling not applied.")
 
-    # Class distribution chart
     if balance:
         y_after_counts = Counter(y_train)
         df_balance = pd.DataFrame({
@@ -481,30 +480,36 @@ elif page == "Prediction":
     st.plotly_chart(fig_features, use_container_width=True)
 
     # -------------------
-    # User input based on feature importance (dynamic)
+    # User input based on top features (max 6, no duplicates)
     # -------------------
     st.subheader("Enter your details for prediction")
     input_widgets = {}
 
-    # Only top N features (e.g., top 6) for input
+    # Get top features from model (max 6)
     top_features = [f[0] for f in sorted_features[:6]]
+    added_main_features = set()
 
     for feature in top_features:
         key = f"input_{feature}"
 
-        # Categorical
-        if feature.startswith("Gender_"):
+        # Handle categorical features
+        if feature.startswith("Gender_") and "Gender" not in added_main_features:
             input_widgets["Gender"] = st.selectbox("Gender", ["Male", "Female"], key=key)
-        elif feature.startswith("BMI Category_"):
+            added_main_features.add("Gender")
+
+        elif feature.startswith("BMI Category_") and "BMI Category" not in added_main_features:
             input_widgets["BMI Category"] = st.selectbox(
                 "BMI Category", ["Underweight", "Normal", "Overweight", "Obese"], key=key
             )
-        elif feature.startswith("Occupation_"):
-            # Optional: dynamically get occupations from df
+            added_main_features.add("BMI Category")
+
+        elif feature.startswith("Occupation_") and "Occupation" not in added_main_features:
             occupations = df["Occupation"].dropna().unique().tolist()
             input_widgets["Occupation"] = st.selectbox("Occupation", occupations, key=key)
-        else:
-            # Numeric sliders
+            added_main_features.add("Occupation")
+
+        # Numeric features
+        elif feature not in added_main_features:
             if feature == "Age":
                 input_widgets[feature] = st.slider("Age (years)", 18, 80, 25, key=key)
             elif feature == "Sleep Duration":
@@ -525,11 +530,15 @@ elif page == "Prediction":
                 input_widgets[feature] = st.slider("Daily Steps", 0, 20000, 5000, key=key)
             else:
                 input_widgets[feature] = st.slider(feature, 0, 100, 0, key=key)
+            added_main_features.add(feature)
 
     input_df = pd.DataFrame([input_widgets])
 
-    # Encode categorical if present
-    input_encoded = pd.get_dummies(input_df)
+    # Encode categorical
+    present_categoricals = [col for col in categorical_cols if col in input_df.columns]
+    input_encoded = pd.get_dummies(input_df, columns=present_categoricals, drop_first=True)
+
+    # Ensure all model-required columns exist
     for col in features:
         if col not in input_encoded.columns:
             input_encoded[col] = 0
@@ -555,3 +564,4 @@ elif page == "Prediction":
         st.subheader("\U0001F50E Prediction Result")
         st.success(f"Predicted Sleep Disorder: {prediction}")
         st.markdown(f"\U0001F4A1 **Recommendation:** {advice.get(prediction, 'No advice available.')}")
+
