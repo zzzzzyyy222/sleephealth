@@ -549,7 +549,7 @@ elif page == "Prediction":
         if col not in input_df.columns:
             input_df[col] = df_encoded[col].mean() if col in numeric_cols else 0
 
-   input_encoded = input_df[features]
+    input_encoded = input_df[features]
 
    # -------------------
    # Prediction button (outside the loop!)
