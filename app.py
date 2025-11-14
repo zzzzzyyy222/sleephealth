@@ -464,7 +464,7 @@ elif page == "Prediction":
 
         report_df = pd.DataFrame(report).transpose()
 
-       st.dataframe(
+        st.dataframe(
            report_df.style
                .format({
                    "precision": "{:.2f}",
