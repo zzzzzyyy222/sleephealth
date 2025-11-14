@@ -334,9 +334,8 @@ elif page == "EDA":
     st.markdown("""
     Sleep disorder prevalence can differ across BMI categories, showing general trends rather than specific values. Patterns suggest potential associations between body composition and sleep health outcomes. Visualizing these relationships helps highlight populations that might benefit from lifestyle interventions. The donut chart provides an overview of how BMI relates to sleep disorders in the dataset.
     """)
-
 elif page == "Prediction":
-    st.title("🔮 Sleep Disorder Prediction")
+    st.title("\U0001F52E Sleep Disorder Prediction")
 
     # -------------------
     # Data preparation
@@ -352,18 +351,19 @@ elif page == "Prediction":
         df_pred["Diastolic"] = pd.to_numeric(bp_split[1], errors="coerce")
         df_pred = df_pred.drop(columns=["Blood Pressure"])
 
-    # -------------------
-    # Categorical encoding
-    # -------------------
+    # Categorical columns
     categorical_cols = ["Gender", "BMI Category"]
     if "Occupation" in df_pred.columns:
         categorical_cols.append("Occupation")
 
+    # One-hot encoding
     df_encoded = pd.get_dummies(df_pred, columns=categorical_cols, drop_first=True)
 
+    # Fill numeric NaNs
     numeric_cols = df_encoded.select_dtypes(include=[np.number]).columns.tolist()
     df_encoded[numeric_cols] = df_encoded[numeric_cols].fillna(df_encoded[numeric_cols].mean())
 
+    # Features & target
     features = [c for c in df_encoded.columns if c != "Sleep Disorder"]
     X_full = df_encoded[features].astype(float).values
     le = LabelEncoder()
@@ -377,17 +377,17 @@ elif page == "Prediction":
     X_full = X_full[mask]
     y = y[mask]
 
+    # Scale features
     scaler = StandardScaler()
     X = scaler.fit_transform(X_full)
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
+    # Train-test split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     # -------------------
     # SMOTE
     # -------------------
-    st.subheader("📊 Class Balancing (SMOTE Option)")
+    st.subheader("\U0001F4CA Class Balancing (SMOTE Option)")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True)
     y_before_counts = Counter(y_train)
 
@@ -398,7 +398,6 @@ elif page == "Prediction":
     else:
         st.info("SMOTE not applied.")
 
-    # Balancing visualization
     if balance:
         y_after_counts = Counter(y_train)
         df_balance = pd.DataFrame({
@@ -423,8 +422,7 @@ elif page == "Prediction":
     st.subheader("Choose Model")
     model_choice = st.selectbox(
         "Select Model",
-        ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"],
-        key="model_select"
+        ["Random Forest", "Logistic Regression", "SVM", "Decision Tree", "XGBoost"]
     )
 
     if model_choice == "Random Forest":
@@ -438,8 +436,11 @@ elif page == "Prediction":
     elif model_choice == "XGBoost":
         model = XGBClassifier(use_label_encoder=False, eval_metric="mlogloss")
 
+    # -------------------
     # Train model
+    # -------------------
     model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
 
     # -------------------
     # Feature importance
@@ -452,14 +453,14 @@ elif page == "Prediction":
         perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
         importance = dict(zip(features, perm.importances_mean))
 
+    # Keep only non-zero importance features
     important_features = [f for f, val in importance.items() if val > 0]
-    sorted_features = sorted([(f, importance[f]) for f in important_features],
-                             key=lambda x: x[1], reverse=True)
-
+    sorted_features = sorted([(f, importance[f]) for f in important_features], key=lambda x: x[1], reverse=True)
+    
     # -------------------
-    # Stable Top Features
+    # Freeze top features once per run
     # -------------------
-    if "numeric_top5" not in st.session_state:
+    if "top_numeric_features" not in st.session_state:
         numeric_top5 = []
         for f, _ in sorted_features:
             if any(f == cat or f.startswith(cat + "_") for cat in categorical_cols):
@@ -467,79 +468,85 @@ elif page == "Prediction":
             numeric_top5.append(f)
             if len(numeric_top5) >= 5:
                 break
-        st.session_state["numeric_top5"] = numeric_top5
 
-    numeric_top5 = st.session_state["numeric_top5"]
+        st.session_state.top_numeric_features = numeric_top5
 
-    # -------------------
-    # User Input 
-    # -------------------
-    st.subheader("Enter Your Details for Prediction")
-    user_inputs = {}
+    # Always use the saved, stable version
+    numeric_top5 = st.session_state.top_numeric_features
 
-    # Sliders for numeric features
-    for f in numeric_top5:
-        key = f"inp_{f}"
-        if f == "Age":
-            user_inputs[f] = st.slider("Age", 18, 80, 30, key=key)
-        elif f == "Sleep Duration":
-            user_inputs[f] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0, key=key)
-        elif f == "Quality of Sleep":
-            user_inputs[f] = st.slider("Quality of Sleep (low to high)", 1, 10, 7, key=key)
-        elif f == "Physical Activity Level":
-            user_inputs[f] = st.slider("Physical Activity (min per day)", 0, 300, 30, key=key)
-        elif f == "Stress Level":
-            user_inputs[f] = st.slider("Stress Level (low to high)", 1, 10, 5, key=key)
-        elif f == "Heart Rate":
-            user_inputs[f] = st.slider("Heart Rate (bpm)", 40, 120, 70, key=key)
-        elif f == "Systolic":
-            user_inputs[f] = st.slider("Systolic BP", 90, 180, 120, key=key)
-        elif f == "Diastolic":
-            user_inputs[f] = st.slider("Diastolic BP", 60, 120, 80, key=key)
-        elif f == "Daily Steps":
-            user_inputs[f] = st.slider("Daily Steps", 0, 20000, 5000, key=key)
-        else:
-            min_val = float(df_encoded[f].min())
-            max_val = float(df_encoded[f].max())
-            mean_val = float(df_encoded[f].mean())
-            user_inputs[f] = st.slider(f, min_val, max_val, mean_val, key=key)
+# -------------------
+# User Input 
+# -------------------
+st.subheader("Enter Your Details for Prediction")
+user_inputs = {}
 
-    # Dropdowns for categoricals
-    for cat in categorical_cols:
-        options = df_pred[cat].dropna().unique().tolist()
-        user_inputs[cat] = st.selectbox(f"{cat}", options, key=f"inp_{cat}")
+# Only numeric features (remove essential categoricals)
+numeric_top5 = []
+for f, _ in sorted_features:
+    # Skip categorical features
+    if any(f == cat or f.startswith(cat + "_") for cat in categorical_cols):
+        continue
+    numeric_top5.append(f)
+    if len(numeric_top5) >= 5:
+        break
 
-    # -------------------
-    # Build input vector
-    # -------------------
-    input_df = pd.DataFrame([user_inputs])
+# Create widgets for top numeric features
+for f in numeric_top5:
+    key = f"inp_{f}"
+    if f == "Age":
+        user_inputs[f] = st.slider("Age", 18, 80, 30, key=key)
+    elif f == "Sleep Duration":
+        user_inputs[f] = st.slider("Sleep Duration (hours)", 0.0, 12.0, 7.0, key=key)
+    elif f == "Quality of Sleep":
+        user_inputs[f] = st.slider("Quality of Sleep (low to high)", 1, 10, 7, key=key)
+    elif f == "Physical Activity Level":
+        user_inputs[f] = st.slider("Physical Activity (min per day)", 0, 300, 30, key=key)
+    elif f == "Stress Level":
+        user_inputs[f] = st.slider("Stress Level *low to high)", 1, 10, 5, key=key)
+    elif f == "Heart Rate":
+        user_inputs[f] = st.slider("Heart Rate (bpm)", 40, 120, 70, key=key)
+    elif f == "Systolic":
+        user_inputs[f] = st.slider("Systolic BP", 90, 180, 120, key=key)
+    elif f == "Diastolic":
+        user_inputs[f] = st.slider("Diastolic BP", 60, 120, 80, key=key)
+    elif f == "Daily Steps":
+        user_inputs[f] = st.slider("Daily Steps", 0, 20000, 5000, key=key)
+    else:
+        # Generic numeric slider
+        min_val = float(df_encoded[f].min())
+        max_val = float(df_encoded[f].max())
+        mean_val = float(df_encoded[f].mean())
+        user_inputs[f] = st.slider(f, min_val, max_val, mean_val, key=key)
 
-    # One-hot encode categoricals same as training
-    input_encoded = pd.get_dummies(input_df, columns=categorical_cols, drop_first=True)
+# Convert to DataFrame
+input_df = pd.DataFrame([user_inputs])
 
-    # Add missing columns
-    for col in features:
-        if col not in input_encoded.columns:
-            input_encoded[col] = df_encoded[col].mean() if col in numeric_cols else 0
+# No categorical encoding needed as we removed them
+input_encoded = input_df[numeric_top5]
 
-    input_encoded = input_encoded[features]
+# Ensure all features required by the model exist
+for col in features:
+    if col not in input_encoded.columns:
+        input_encoded[col] = df_encoded[col].mean() if col in numeric_cols else 0
 
-    # -------------------
-    # Prediction
-    # -------------------
-    if st.button("✅ Predict Sleep Disorder", key="predict_btn"):
-        X_new = scaler.transform(input_encoded)
-        pred_class = le.inverse_transform(model.predict(X_new))[0]
+input_encoded = input_encoded[features]
 
-        if pred_class == "None":
-            pred_class = "Normal Sleep"
+# -------------------
+# Prediction
+# -------------------
+if st.button("\u2705 Predict Sleep Disorder"):
+    X_new = scaler.transform(input_encoded)
+    pred_class = le.inverse_transform(model.predict(X_new))[0]
 
-        advice = {
-            "Normal Sleep": "Your sleep pattern looks healthy.",
-            "Insomnia": "You may experience insomnia. Establish a consistent sleep schedule, improve your sleep environment, and avoid stimulants near bedtime.",
-            "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation and consider lifestyle changes like weight loss, exercise, and sleeping on your side."
-        }
+    if pred_class == "None":
+        pred_class = "Normal Sleep"
 
+    advice = {
+        "Normal Sleep": "Your sleep pattern looks healthy.",
+        "Insomnia": "You may experience insomnia. Establish a consistent sleep schedule, make your bedroom dark, quiet, and cool, and avoid stimulants like caffeine and nicotine close to bedtime. Regular exercise during the day is helpful, but avoid intense workouts near bedtime. If you can't sleep after about 20 minutes, get out of bed and do a relaxing activity until you feel sleepy again. ",
+        "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation. try lifestyle changes like losing weight, exercising, avoiding alcohol and sedatives, and sleeping on your side instead of your back."
+    }
 
-
-
+    st.subheader("\U0001F50E Prediction Result")
+    st.success(f"Sleep Disorder: **{pred_class}**")
+    st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
