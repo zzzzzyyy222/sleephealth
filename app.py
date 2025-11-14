@@ -353,7 +353,7 @@ elif page == "Prediction":
         df_pred = df_pred.drop(columns=["Blood Pressure"])
 
     # -------------------
-    # Categorical columns
+    # Categorical encoding
     # -------------------
     categorical_cols = ["Gender", "BMI Category"]
     if "Occupation" in df_pred.columns:
@@ -380,13 +380,16 @@ elif page == "Prediction":
     scaler = StandardScaler()
     X = scaler.fit_transform(X_full)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
 
     # -------------------
     # SMOTE
     # -------------------
     st.subheader("📊 Class Balancing (SMOTE Option)")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True)
+
     if balance:
         smote = SMOTE(random_state=42)
         X_train, y_train = smote.fit_resample(X_train, y_train)
@@ -404,71 +407,64 @@ elif page == "Prediction":
         key="model_select"
     )
 
-    # -------------------
-    # Train model
-    # -------------------
-    def train_model(choice):
-        if choice == "Random Forest":
-            return RandomForestClassifier(class_weight=None if balance else "balanced")
-        elif choice == "Logistic Regression":
-            return LogisticRegression(max_iter=1000, class_weight=None if balance else "balanced")
-        elif choice == "SVM":
-            return SVC(kernel="rbf", probability=True, class_weight=None if balance else "balanced")
-        elif choice == "Decision Tree":
-            return DecisionTreeClassifier(class_weight=None if balance else "balanced")
-        else:
-            return XGBClassifier(use_label_encoder=False, eval_metric="mlogloss")
+    if model_choice == "Random Forest":
+        model = RandomForestClassifier(class_weight=None if balance else "balanced")
+    elif model_choice == "Logistic Regression":
+        model = LogisticRegression(max_iter=1000, class_weight=None if balance else "balanced")
+    elif model_choice == "SVM":
+        model = SVC(kernel="rbf", probability=True, class_weight=None if balance else "balanced")
+    elif model_choice == "Decision Tree":
+        model = DecisionTreeClassifier(class_weight=None if balance else "balanced")
+    elif model_choice == "XGBoost":
+        model = XGBClassifier(use_label_encoder=False, eval_metric="mlogloss")
 
-    model = train_model(model_choice)
+    # Train model
     model.fit(X_train, y_train)
 
     # -------------------
-    # Feature importance (cached)
+    # Feature importance (NO CACHING)
     # -------------------
-    @st.cache_data
-    def compute_importance(model_choice, model, features, numeric_cols, X_test, y_test):
-        if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
-            importance = dict(zip(features, model.feature_importances_))
-        elif model_choice == "Logistic Regression":
-            importance = dict(zip(features, abs(model.coef_[0])))
-        else:  # SVM
-            perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
-            importance = dict(zip(features, perm.importances_mean))
+    if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
+        importance = dict(zip(features, model.feature_importances_))
+    elif model_choice == "Logistic Regression":
+        importance = dict(zip(features, abs(model.coef_[0])))
+    else:  # SVM
+        perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
+        importance = dict(zip(features, perm.importances_mean))
 
-        important_features = [f for f, val in importance.items() if val > 0 and f in numeric_cols]
-        sorted_features = sorted([(f, importance[f]) for f in important_features],
-                                 key=lambda x: x[1],
-                                 reverse=True)
-        return [f for f, _ in sorted_features][:5]  # top 5
-
-    numeric_top5 = compute_importance(model_choice, model, features, numeric_cols, X_test, y_test)
+    important_features = [f for f, val in importance.items() if val > 0 and f in numeric_cols]
+    sorted_features = sorted([(f, importance[f]) for f in important_features], key=lambda x: x[1], reverse=True)
 
     # -------------------
-    # User Input
+    # User inputs (Top 5 numeric)
     # -------------------
     st.subheader("Enter Your Details for Prediction")
     user_inputs = {}
 
+    numeric_top5 = [f for f, _ in sorted_features][:5]
+
     for idx, f in enumerate(numeric_top5):
-        key = f"static_key_{model_choice}_{idx}"
+        key = f"{model_choice}_input_{idx}_{f}"
         min_val = float(df_encoded[f].min())
         max_val = float(df_encoded[f].max())
         mean_val = float(df_encoded[f].mean())
         user_inputs[f] = st.slider(f, min_val, max_val, mean_val, key=key)
 
     input_df = pd.DataFrame([user_inputs])
+    input_encoded = input_df[numeric_top5]
 
-    # Ensure all model features exist
+    # Fill missing model features
     for col in features:
-        if col not in input_df.columns:
-            input_df[col] = df_encoded[col].mean() if col in numeric_cols else 0
-    input_df = input_df[features]
+        if col not in input_encoded.columns:
+            input_encoded[col] = df_encoded[col].mean() if col in numeric_cols else 0
+
+    input_encoded = input_encoded[features]
 
     # -------------------
     # Prediction
     # -------------------
     if st.button("✅ Predict Sleep Disorder", key="predict_btn"):
-        X_new = scaler.transform(input_df)
+        X_new = scaler.transform(input_encoded)
         pred_class = le.inverse_transform(model.predict(X_new))[0]
 
         if pred_class == "None":
@@ -476,12 +472,11 @@ elif page == "Prediction":
 
         advice = {
             "Normal Sleep": "Your sleep pattern looks healthy.",
-            "Insomnia": "You may experience insomnia. Establish a consistent sleep schedule and improve sleep hygiene.",
-            "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation and consider lifestyle changes."
+            "Insomnia": "You may experience insomnia. Improve your sleep schedule and environment.",
+            "Sleep Apnea": "Possible sleep apnea. Seek medical evaluation."
         }
 
         st.subheader("🔍 Prediction Result")
         st.success(f"Sleep Disorder: **{pred_class}**")
         st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
 
-        st.markdown(f"**Recommendation:** {advice.get(pred_class, 'No advice available.')}")
