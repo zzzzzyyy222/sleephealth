@@ -352,20 +352,19 @@ elif page == "Prediction":
         df_pred["Diastolic"] = bp_split[1]
         df_pred = df_pred.drop(columns=["Blood Pressure"])
 
-    # Categorical columns (no occupation)
+    # Categorical columns
     categorical_cols = ["Gender", "BMI Category", "Occupation"]
     df_encoded = pd.get_dummies(df_pred, columns=categorical_cols, drop_first=True)
 
-    # Fill numeric NaNs before scaling
+    # Fill numeric NaNs
     numeric_cols = df_encoded.select_dtypes(include=[np.number]).columns.tolist()
     df_encoded[numeric_cols] = df_encoded[numeric_cols].fillna(df_encoded[numeric_cols].mean())
 
     # Features and target
-    target_col = "Sleep Disorder"
-    features = [col for col in df_encoded.columns if col != target_col]
+    features = [col for col in df_encoded.columns if col != "Sleep Disorder"]
     X_full = df_encoded[features].values.astype(float)
     le = LabelEncoder()
-    y = le.fit_transform(df_encoded[target_col])
+    y = le.fit_transform(df_encoded["Sleep Disorder"])
 
     # Remove outliers
     z_scores = np.abs(zscore(df_encoded[numeric_cols]))
@@ -378,15 +377,17 @@ elif page == "Prediction":
     X = scaler.fit_transform(X_full)
 
     # Train-test split
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
 
     # -------------------
     # SMOTE
     # -------------------
     st.subheader("\U0001F4CA Class Balancing (SMOTE Option)")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True)
-
     y_before_counts = Counter(y_train)
+
     if balance:
         smote = SMOTE(random_state=42)
         X_train, y_train = smote.fit_resample(X_train, y_train)
@@ -394,6 +395,7 @@ elif page == "Prediction":
     else:
         st.info("Oversampling not applied.")
 
+    # Optional class distribution plot
     if balance:
         y_after_counts = Counter(y_train)
         df_balance = pd.DataFrame({
@@ -442,7 +444,9 @@ elif page == "Prediction":
     # -------------------
     # Evaluation metrics
     # -------------------
-    report_dict = classification_report(y_test, y_pred, target_names=le.classes_, output_dict=True)
+    report_dict = classification_report(
+        y_test, y_pred, target_names=le.classes_, output_dict=True
+    )
     report_df = pd.DataFrame(report_dict).transpose().round(2)
 
     st.subheader(f"{model_choice} Evaluation Metrics")
@@ -455,7 +459,6 @@ elif page == "Prediction":
     # -------------------
     # Feature importance
     # -------------------
-    importance = None
     if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
         importance = dict(zip(features, model.feature_importances_))
     elif model_choice == "Logistic Regression":
@@ -465,6 +468,8 @@ elif page == "Prediction":
         importance = dict(zip(features, perm.importances_mean))
 
     sorted_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)
+
+    # Feature importance plot
     fig_features = px.bar(
         x=[f[1] for f in sorted_features],
         y=[f[0] for f in sorted_features],
@@ -478,34 +483,32 @@ elif page == "Prediction":
     st.plotly_chart(fig_features, use_container_width=True)
 
     # -------------------
-    # User input based on feature importance
+    # User input based on feature importance (max 6)
     # -------------------
     st.subheader("Enter your details for prediction")
     input_widgets = {}
 
-    # Include top 6 features + mandatory ones
-    top_features = [f[0] for f in sorted_features[:6]]
+    # Mandatory features first
     mandatory_features = ["Gender", "BMI Category", "Occupation"]
-    all_features_for_input = mandatory_features + top_features
+    remaining_slots = 6 - len(mandatory_features)
 
-    # Remove duplicates while keeping order
-    seen = set()
-    user_features = []
-    for f in all_features_for_input:
-        if f not in seen:
-            user_features.append(f)
-            seen.add(f)
+    # Top features for remaining slots
+    top_features = [f[0] for f in sorted_features if f[0] not in mandatory_features][:remaining_slots]
 
-    # Create input widgets with unique keys
-    for idx, feature in enumerate(user_features):
-        key = f"user_input_{feature}_{idx}"
+    user_features = mandatory_features + top_features
+
+    for feature in user_features:
+        key = f"input_{feature}"
 
         if feature == "Gender":
             input_widgets[feature] = st.selectbox("Gender", ["Male", "Female"], key=key)
         elif feature == "BMI Category":
-            input_widgets[feature] = st.selectbox("BMI Category", ["Underweight", "Normal", "Overweight", "Obese"], key=key)
+            input_widgets[feature] = st.selectbox(
+                "BMI Category", ["Underweight", "Normal", "Overweight", "Obese"], key=key
+            )
         elif feature == "Occupation":
-            input_widgets[feature] = st.text_input("Occupation", key=key)
+            occupations = df["Occupation"].dropna().unique().tolist()
+            input_widgets[feature] = st.selectbox("Occupation", occupations, key=key)
         else:
             # Numeric sliders
             if feature == "Age":
@@ -527,11 +530,11 @@ elif page == "Prediction":
             elif feature == "Daily Steps":
                 input_widgets[feature] = st.slider("Daily Steps", 0, 20000, 5000, key=key)
             else:
-                input_widgets[feature] = st.number_input(feature, value=0, key=key)
+                input_widgets[feature] = st.slider(feature, 0, 100, 0, key=key)
 
     input_df = pd.DataFrame([input_widgets])
 
-    # Encode categorical inputs
+    # Encode categorical
     present_categoricals = [col for col in categorical_cols if col in input_df.columns]
     input_encoded = pd.get_dummies(input_df, columns=present_categoricals, drop_first=True)
 
