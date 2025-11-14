@@ -397,7 +397,23 @@ elif page == "Prediction":
         st.info("SMOTE applied!")
     else:
         st.info("SMOTE not applied.")
-
+    if balance:
+        y_after_counts = Counter(y_train)
+        df_balance = pd.DataFrame({
+            "Class": list(le.classes_) * 2,
+            "Count": [y_before_counts.get(i, 0) for i in range(len(le.classes_))] +
+                     [y_after_counts.get(i, 0) for i in range(len(le.classes_))],
+            "Stage": ["Before SMOTE"] * len(le.classes_) +
+                     ["After SMOTE"] * len(le.classes_)
+        })
+        fig_balance = px.bar(
+            df_balance, x="Class", y="Count", color="Stage",
+            barmode="group",
+            title="Class Distribution Before and After SMOTE",
+            color_discrete_map={"Before SMOTE": "#62C3A5", "After SMOTE": "#F78364"}
+        )
+        fig_balance.update_layout(xaxis_title="Class", yaxis_title="Count", title_x=0.3)
+        st.plotly_chart(fig_balance, use_container_width=True)
     # -------------------
     # Model selection
     # -------------------
