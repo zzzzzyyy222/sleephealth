@@ -76,12 +76,12 @@ This interactive dashboard provides insights into sleep patterns, lifestyle habi
 ### \U0001F4E5 Download Dataset
 [Download Sleep Health Dataset](https://www.kaggle.com/datasets/uom190346a/sleep-health-and-lifestyle-dataset)
 
-### \U0001F4CA Dashboard Features
+### Dashboard Features
 - **EDA:** Explore sleep metrics by gender, age, occupation, and more  
 - **Prediction:** Use machine learning to predict sleep disorders  
 - **Filters:** Customize views by gender, age range, occupation, and sleep quality
 
-### \U0001F468 Created By
+### Created By
 - Chong Zhe, Lam Pooi Syuen, Hashika  
 
 ### \U0001F4CC How to Use
