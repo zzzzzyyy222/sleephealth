@@ -563,7 +563,7 @@ elif page == "Prediction":
    # -------------------
    # Prediction button (outside the loop!)
    # -------------------
-    if st.button("\u2705 Predict Sleep Disorder"):
+    if st.button("Predict Sleep Disorder"):
         X_new = scaler.transform(input_encoded)
         pred_class = le.inverse_transform(model.predict(X_new))[0]
 
