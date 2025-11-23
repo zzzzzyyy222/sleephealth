@@ -300,7 +300,7 @@ elif page == "EDA":
     """)
 
     # Sleep Disorder by Age
-    st.subheader("\U0001F476\U0001F9D3 Sleep Disorders by Age Group")
+    st.subheader("Sleep Disorders by Age Group")
     fig_age = px.histogram(
         filtered,
         x="Age",
@@ -325,7 +325,7 @@ elif page == "EDA":
         "Normalweight": "Normal Weight"
     })
     )
-    st.subheader("\U00002696 Sleep Disorder by BMI Category")
+    st.subheader("Sleep Disorder by BMI Category")
     bmi_counts = filtered.groupby("BMI Category")["Sleep Disorder"].count().reset_index()
     bmi_counts.columns = ["BMI Category", "Count"]
     fig_bmi_donut = px.pie(
