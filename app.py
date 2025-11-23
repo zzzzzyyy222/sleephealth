@@ -316,6 +316,15 @@ elif page == "EDA":
     """)
 
     # Sleep Disorder by BMI Category
+    filtered["BMI Category"] = (
+    filtered["BMI Category"]
+    .str.strip()
+    .str.title()
+    .replace({
+        "Normal": "Normal Weight",
+        "Normalweight": "Normal Weight"
+    })
+    )
     st.subheader("\U00002696 Sleep Disorder by BMI Category")
     bmi_counts = filtered.groupby("BMI Category")["Sleep Disorder"].count().reset_index()
     bmi_counts.columns = ["BMI Category", "Count"]
