@@ -299,6 +299,7 @@ elif page == "EDA":
     """)
 
     # Sleep Disorder by Age
+    filtered["Sleep Disorder"] = filtered["Sleep Disorder"].fillna("None")
     st.subheader("Sleep Disorders by Age Group")
     #Create simple age groups
     filtered["Age Group"] = pd.cut(
