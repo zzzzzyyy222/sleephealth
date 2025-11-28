@@ -286,13 +286,14 @@ elif page == "EDA":
     # Sleep Disorder Distribution 
     st.subheader("Sleep Disorder Distribution")
     sleep_counts = df['Sleep Disorder'].value_counts(dropna=False)
+
     fig_sleep = px.pie(
-    sleep_counts,
     names=sleep_counts.index,
     values=sleep_counts.values,
     title="Sleep Disorder Distribution",
-    hole=0.4
+    hole=0.4  # makes it a donut chart
     )
+
     st.plotly_chart(fig_sleep)
     st.markdown("""
     The distribution of sleep disorders shows general prevalence patterns among participants. Some disorder appear more frequently, while other are less common but most of them dont have sleep disorders. This overview helps identify areas for awareness or intervention without emphasizing specific counts. Understanding overall trends allows for a broad view of sleep health across the population.
