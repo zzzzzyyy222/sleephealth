@@ -301,11 +301,11 @@ elif page == "EDA":
     # Sleep Disorder by Age
     st.subheader("Sleep Disorders by Age Group")
     #Create simple age groups
-       filtered["Age Group"] = pd.cut(
-       filtered["Age"],
-       bins=[0, 20, 30, 40, 50, 60, 100],
-       labels=["<20", "20–29", "30–39", "40–49", "50–59", "60+"]
-       )
+    filtered["Age Group"] = pd.cut(
+        filtered["Age"],
+        bins=[0, 20, 30, 40, 50, 60, 100],
+        labels=["<20", "20–29", "30–39", "40–49", "50–59", "60+"]
+    )
 
     fig_age_group = px.bar(
     filtered,
