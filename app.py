@@ -282,16 +282,19 @@ elif page == "EDA":
     st.header("4️. Sleep Disorder Analysis")
 
     # Sleep Disorder Distribution (Pie)
-    st.subheader("\U0001FA7A Sleep Disorder Distribution")
-    disorder_counts = filtered["Sleep Disorder"].value_counts().reset_index()
-    disorder_counts.columns = ["Sleep Disorder", "Count"]
-    fig_disorder = px.pie(
-        disorder_counts,
-        names="Sleep Disorder",
-        values="Count",
-        color="Sleep Disorder",
-        color_discrete_sequence=px.colors.qualitative.Set3,
-        title="Sleep Disorder Distribution"
+    st.subheader("🛌 Sleep Disorder Distribution")
+
+    sleep_counts = df['Sleep Disorder'].value_counts(dropna=False)
+
+    fig_sleep = px.pie(
+    sleep_counts,
+    names=sleep_counts.index,
+    values=sleep_counts.values,
+    title="Sleep Disorder Distribution",
+    hole=0.4
+    )
+
+st.plotly_chart(fig_sleep)
     )
     fig_disorder.update_traces(textinfo="percent+label")
     st.plotly_chart(fig_disorder, use_container_width=True)
