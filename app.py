@@ -279,6 +279,8 @@ elif page == "EDA":
     # -----------------------------
     # SECTION 4: SLEEP DISORDER ANALYSIS
     # -----------------------------
+    df['Sleep Disorder'] = df['Sleep Disorder'].fillna("None")
+
     st.header("4️. Sleep Disorder Analysis")
 
     # Sleep Disorder Distribution (Pie)
