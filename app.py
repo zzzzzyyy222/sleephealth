@@ -300,7 +300,7 @@ elif page == "EDA":
 
     # Sleep Disorder by Age
     st.subheader("Sleep Disorders by Age Group")
-       Create simple age groups
+    #Create simple age groups
        filtered["Age Group"] = pd.cut(
        filtered["Age"],
        bins=[0, 20, 30, 40, 50, 60, 100],
