@@ -293,11 +293,6 @@ elif page == "EDA":
     title="Sleep Disorder Distribution",
     hole=0.4
     )
-
-st.plotly_chart(fig_sleep)
-    )
-    fig_disorder.update_traces(textinfo="percent+label")
-    st.plotly_chart(fig_disorder, use_container_width=True)
     st.markdown("""
     The distribution of sleep disorders shows general prevalence patterns among participants. Some disorders appear more frequently, while others are less common. This overview helps identify areas for awareness or intervention without emphasizing specific counts. Understanding overall trends allows for a broad view of sleep health across the population.
     """)
