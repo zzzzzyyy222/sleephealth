@@ -295,10 +295,12 @@ elif page == "EDA":
     )
     st.plotly_chart(fig_sleep)
     st.markdown("""
-    The distribution of sleep disorders shows general prevalence patterns among participants. Some disorders appear more frequently, while others are less common. This overview helps identify areas for awareness or intervention without emphasizing specific counts. Understanding overall trends allows for a broad view of sleep health across the population.
+    The distribution of sleep disorders shows general prevalence patterns among participants. Some disorder appear more frequently, while other are less common but most of them dont have sleep disorders. This overview helps identify areas for awareness or intervention without emphasizing specific counts. Understanding overall trends allows for a broad view of sleep health across the population.
     """)
 
     # Sleep Disorder by Age
+    st.subheader("Sleep Disorders by Age Group")
+    filtered["Sleep Disorder"] = filtered["Sleep Disorder"].fillna("None")
     st.subheader("Sleep Disorders by Age Group")
     fig_age = px.histogram(
         filtered,
@@ -310,6 +312,7 @@ elif page == "EDA":
         title="Sleep Disorders by Age Group"
     )
     st.plotly_chart(fig_age, use_container_width=True)
+
     st.markdown("""
     Sleep disorders may vary with age, showing general patterns of prevalence across different age groups. Observing these trends helps understand how life stage and lifestyle might influence sleep health. The visualization provides an overall perspective rather than exact numbers. This can inform broad strategies for preventive measures and health promotion.
     """)
