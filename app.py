@@ -283,7 +283,7 @@ elif page == "EDA":
 
     st.header("4️. Sleep Disorder Analysis")
 
-    # Sleep Disorder Distribution (Pie)
+    # Sleep Disorder Distribution 
     st.subheader("Sleep Disorder Distribution")
     sleep_counts = df['Sleep Disorder'].value_counts(dropna=False)
     fig_sleep = px.pie(
@@ -301,15 +301,19 @@ elif page == "EDA":
     # Sleep Disorder by Age
     st.subheader("Sleep Disorders by Age Group")
     filtered["Sleep Disorder"] = filtered["Sleep Disorder"].fillna("None")
-    fig_age_box = px.box(
-    filtered,
+    age_counts = filtered.groupby("Sleep Disorder")["Age"].count().reset_index()
+    age_counts.columns = ["Sleep Disorder", "Count"]
+
+    fig_age_bar = px.bar(
+    age_counts,
     x="Sleep Disorder",
-    y="Age",
+    y="Count",
+    title="Sleep Disorder Count by Category",
     color="Sleep Disorder",
-    color_discrete_sequence=px.colors.qualitative.Set1,
-    title="Age Distribution by Sleep Disorder"
+    color_discrete_sequence=px.colors.qualitative.Set1
     )
-    st.plotly_chart(fig_age_box, use_container_width=True)
+
+st.plotly_chart(fig_age_bar, use_container_width=True)
     st.markdown("""
     Sleep disorders may vary with age, showing general patterns of prevalence across different age groups. Observing these trends helps understand how life stage and lifestyle might influence sleep health. The visualization provides an overall perspective rather than exact numbers. This can inform broad strategies for preventive measures and health promotion.
     """)
