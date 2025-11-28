@@ -324,30 +324,35 @@ elif page == "EDA":
     """)
 
     # Sleep Disorder by BMI Category
+    # Clean BMI Category
     filtered["BMI Category"] = (
-    filtered["BMI Category"]
-    .str.strip()
-    .str.title()
-    .replace({
-        "Normal": "Normal Weight",
-        "Normalweight": "Normal Weight"
-    })
+        filtered["BMI Category"]
+        .str.strip()
+        .str.title()
+        .replace({
+            "Normal": "Normal Weight",
+            "Normalweight": "Normal Weight"
+        })
     )
-    st.subheader("Sleep Disorder by BMI Category")
-    bmi_counts = filtered.groupby("BMI Category")["Sleep Disorder"].count().reset_index()
-    bmi_counts.columns = ["BMI Category", "Count"]
-    fig_bmi_donut = px.pie(
-        bmi_counts,
-        names="BMI Category",
-        values="Count",
-        hole=0.4,
-        color_discrete_sequence=px.colors.qualitative.Pastel,
-        title="Sleep Disorder by BMI Category"
+
+    # Fix missing sleep disorder values
+    filtered["Sleep Disorder"] = filtered["Sleep Disorder"].fillna("None")
+
+    # Count by both BMI Category and Sleep Disorder
+    bmi_sd_counts = filtered.groupby(["BMI Category", "Sleep Disorder"]).size().reset_index(name="Count")
+
+    fig_bmi_bar = px.bar(
+        bmi_sd_counts,
+        x="BMI Category",
+        y="Count",
+        color="Sleep Disorder",
+        barmode="group",
+        title="Sleep Disorder by BMI Category",
+        color_discrete_sequence=px.colors.qualitative.Set2
     )
-    fig_bmi_donut.update_traces(textinfo="label+value+percent", textposition="outside",
-                                hovertemplate="%{label}: %{value} (%{percent})")
-    fig_bmi_donut.update_layout(margin=dict(t=30, b=0, l=0, r=0))
-    st.plotly_chart(fig_bmi_donut, use_container_width=True)
+
+    st.plotly_chart(fig_bmi_bar, use_container_width=True)
+
     st.markdown("""
     Sleep disorder prevalence can differ across BMI categories, showing general trends rather than specific values. Patterns suggest potential associations between body composition and sleep health outcomes. Visualizing these relationships helps highlight populations that might benefit from lifestyle interventions. The donut chart provides an overview of how BMI relates to sleep disorders in the dataset.
     """)
