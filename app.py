@@ -301,18 +301,15 @@ elif page == "EDA":
     # Sleep Disorder by Age
     st.subheader("Sleep Disorders by Age Group")
     filtered["Sleep Disorder"] = filtered["Sleep Disorder"].fillna("None")
-    st.subheader("Sleep Disorders by Age Group")
-    fig_age = px.histogram(
-        filtered,
-        x="Age",
-        color="Sleep Disorder",
-        nbins=20,
-        barnorm="percent",
-        color_discrete_sequence=px.colors.qualitative.Set1,
-        title="Sleep Disorders by Age Group"
+    fig_age_box = px.box(
+    filtered,
+    x="Sleep Disorder",
+    y="Age",
+    color="Sleep Disorder",
+    color_discrete_sequence=px.colors.qualitative.Set1,
+    title="Age Distribution by Sleep Disorder"
     )
-    st.plotly_chart(fig_age, use_container_width=True)
-
+    st.plotly_chart(fig_age_box, use_container_width=True)
     st.markdown("""
     Sleep disorders may vary with age, showing general patterns of prevalence across different age groups. Observing these trends helps understand how life stage and lifestyle might influence sleep health. The visualization provides an overall perspective rather than exact numbers. This can inform broad strategies for preventive measures and health promotion.
     """)
