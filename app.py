@@ -18,10 +18,8 @@ from imblearn.over_sampling import SMOTE
 from scipy.stats import zscore
 from collections import Counter
 
-# Page config
 st.set_page_config(page_title="Sleep Health Dashboard", layout="wide")
 
-# Load data safely
 @st.cache_data
 def load_data(path="Sleep_health_and_lifestyle_dataset.csv"):
     try:
@@ -34,7 +32,6 @@ def load_data(path="Sleep_health_and_lifestyle_dataset.csv"):
 
 df = load_data()
 
-# Sidebar
 st.sidebar.title("Sleep Health Dashboard")
 page = st.sidebar.radio("Navigate to:", ["About", "Introduction", "EDA", "Prediction"])
 
@@ -125,7 +122,6 @@ Poor sleep can lead to stress, reduced productivity, and long-term health issues
 - \U0001F4A1 Short naps (20–30 minutes) can boost alertness and performance without affecting nighttime sleep.
 """)
 
-    # Question
     st.markdown("### \u2753 Quick Question")
     user_answer = st.radio(
         "How many hours of sleep do you usually get per night?",
@@ -142,7 +138,6 @@ Poor sleep can lead to stress, reduced productivity, and long-term health issues
         else:
             st.warning("\U0001F634 Oversleeping can also affect mood and metabolism — balance is key!")
 
-    #Key Features of This Dashboard
     st.subheader("\U0001F539 Key Features of This Dashboard")
     st.markdown("""
 - Interactive filters and visual analytics  
@@ -161,19 +156,14 @@ elif page == "EDA":
     This section provides insights into sleep patterns, disorders, and the impact of physical activity across different participant groups.
     """)
 
-    # -----------------------------
-    # SECTION 1: SLEEP PATTERNS
-    # -----------------------------
     st.header("1️. Sleep Patterns & Disorders")
 
-    # Summary Metrics
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Avg Sleep Duration (hrs)", f"{filtered['Sleep Duration'].mean():.2f}")
     col2.metric("Median Sleep Duration (hrs)", f"{filtered['Sleep Duration'].median():.2f}")
     col3.metric("Avg Stress Level", f"{filtered['Stress Level'].mean():.2f}")
     col4.metric("Avg Daily Steps", f"{filtered['Daily Steps'].mean():.0f}")
 
-    # --- Sleep Duration by Occupation ---
     st.subheader("\U0001F4CA Sleep Duration by Occupation")
     fig_occ = px.box(
         filtered,
@@ -189,7 +179,6 @@ elif page == "EDA":
     Sleep patterns can vary across different occupations due to varying demands and work schedules. Some occupations may show wider variations in sleep duration, reflecting differences in personal habits or responsibilities. Observing these patterns helps understand how work-life balance influences rest. The visualization provides a general overview of how occupation relates to sleep without focusing on specific values.
     """)
 
-    # --- Distribution of Sleep Quality ---
     st.subheader("\U0001F4A4 Distribution of Sleep Quality")
     sleep_quality_counts = filtered.groupby(["Quality of Sleep", "Gender"]).size().reset_index(name="Count")
     fig_quality = px.bar(
@@ -207,7 +196,6 @@ elif page == "EDA":
     Sleep quality varies across individuals and can be influenced by factors like stress, lifestyle, and daily habits. The distribution shows general trends in how participants report their rest without focusing on precise counts. Differences between groups may indicate patterns worth further exploration. Overall, this visualization helps identify broad trends in sleep quality across the population.
     """)
 
-    # --- Stress vs Sleep Quality ---
     st.subheader("\U0001F4A2 Stress Level vs Average Sleep Quality")
     avg_stress_sleep = filtered.groupby("Stress Level")["Quality of Sleep"].mean().reset_index()
     fig_stress = px.line(
@@ -224,9 +212,6 @@ elif page == "EDA":
     There is a general relationship between stress and sleep quality, where higher stress tends to relate to lower quality of sleep. This trend highlights the importance of mental and emotional well-being for restful sleep. Observing patterns across participants helps identify how stress may impact sleep in different contexts. The chart provides a high-level view of this relationship without specifying numerical values.
     """)
 
-    # -----------------------------
-    # SECTION 2: LIFESTYLE & ACTIVITY
-    # -----------------------------
     st.header("2️. Lifestyle & Physical Activity")
 
     # Physical Activity vs Sleep Quality (Scatter Plot)
@@ -249,9 +234,6 @@ elif page == "EDA":
     Participants with higher physical activity levels generally report better sleep quality. This suggests a positive relationship between exercise and restful sleep. The scatter plot allows us to observe overall patterns and trends rather than focusing on specific values. These insights highlight the potential benefits of regular activity on sleep health in a general context.
     """)
 
-    # -----------------------------
-    # SECTION 3: CORRELATION
-    # -----------------------------
     st.header("3️. Correlation Analysis")
     numeric_cols = filtered.select_dtypes(include=np.number).columns.tolist()
     cols_to_remove = ["Person ID", "Person_ID", "ID", "id"]
@@ -276,9 +258,6 @@ elif page == "EDA":
     The correlation heatmap shows how numerical variables relate to each other. Positive or negative trends indicate general patterns in the data without relying on exact numbers. Observing correlations helps identify which factors are associated with better or worse sleep. This visualization provides a high-level overview of potential relationships for further exploration.
     """)
 
-    # -----------------------------
-    # SECTION 4: SLEEP DISORDER ANALYSIS
-    # -----------------------------
     df['Sleep Disorder'] = df['Sleep Disorder'].fillna("None")
 
     st.header("4️. Sleep Disorder Analysis")
@@ -324,8 +303,6 @@ elif page == "EDA":
     Sleep disorders may vary with age, showing general patterns of prevalence across different age groups. Observing these trends helps understand how life stage and lifestyle might influence sleep health. The visualization provides an overall perspective rather than exact numbers. This can inform broad strategies for preventive measures and health promotion.
     """)
 
-    # Sleep Disorder by BMI Category
-    # Clean BMI Category
     filtered["BMI Category"] = (
         filtered["BMI Category"]
         .str.strip()
@@ -336,10 +313,8 @@ elif page == "EDA":
         })
     )
 
-    # Fix missing sleep disorder values
     filtered["Sleep Disorder"] = filtered["Sleep Disorder"].fillna("None")
 
-    # Count by both BMI Category and Sleep Disorder
     bmi_sd_counts = filtered.groupby(["BMI Category", "Sleep Disorder"]).size().reset_index(name="Count")
 
     fig_bmi_bar = px.bar(
@@ -357,44 +332,34 @@ elif page == "EDA":
     st.markdown("""
     Sleep disorder prevalence can differ across BMI categories, showing general trends rather than specific values. Patterns suggest potential associations between body composition and sleep health outcomes. Visualizing these relationships helps highlight populations that might benefit from lifestyle interventions. The donut chart provides an overview of how BMI relates to sleep disorders in the dataset.
     """)
+    
 elif page == "Prediction":
     st.title("\U0001F52E Sleep Disorder Prediction")
 
-    # -------------------
-    # Data preparation
-    # -------------------
     df_pred = df.copy()
     df_pred["Sleep Disorder"] = df_pred["Sleep Disorder"].fillna("None")
     df_pred = df_pred.drop(columns=[c for c in ["Person ID", "ID"] if c in df_pred.columns], errors="ignore")
 
-    # Split Blood Pressure
     if "Blood Pressure" in df_pred.columns:
         bp_split = df_pred["Blood Pressure"].str.split("/", expand=True)
         df_pred["Systolic"] = pd.to_numeric(bp_split[0], errors="coerce")
         df_pred["Diastolic"] = pd.to_numeric(bp_split[1], errors="coerce")
         df_pred = df_pred.drop(columns=["Blood Pressure"])
 
-    # Categorical columns
     categorical_cols = ["Gender", "BMI Category"]
     if "Occupation" in df_pred.columns:
         categorical_cols.append("Occupation")
 
-    # One-hot encoding
     df_encoded = pd.get_dummies(df_pred, columns=categorical_cols, drop_first=True)
 
-    # Fill numeric NaNs
     numeric_cols = df_encoded.select_dtypes(include=[np.number]).columns.tolist()
     df_encoded[numeric_cols] = df_encoded[numeric_cols].fillna(df_encoded[numeric_cols].mean())
 
-    # Features & target
     features = [c for c in df_encoded.columns if c != "Sleep Disorder"]
     X_full = df_encoded[features].astype(float).values
     le = LabelEncoder()
     y = le.fit_transform(df_encoded["Sleep Disorder"])
 
-    # -------------------
-    # Outlier removal
-    # -------------------
     z_scores = np.abs(zscore(df_encoded[numeric_cols]))
     mask = (z_scores < 3).all(axis=1)
     X_full = X_full[mask]
@@ -407,9 +372,6 @@ elif page == "Prediction":
     # Train-test split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    # -------------------
-    # SMOTE
-    # -------------------
     st.subheader("\U0001F4CA Class Balancing (SMOTE Option)")
     balance = st.checkbox("Apply SMOTE Oversampling", value=True)
     y_before_counts = Counter(y_train)
@@ -437,9 +399,7 @@ elif page == "Prediction":
         )
         fig_balance.update_layout(xaxis_title="Class", yaxis_title="Count", title_x=0.3)
         st.plotly_chart(fig_balance, use_container_width=True)
-    # -------------------
-    # Model selection
-    # -------------------
+  
     st.subheader("Choose Model")
     model_choice = st.selectbox(
         "Select Model",
@@ -457,9 +417,6 @@ elif page == "Prediction":
     elif model_choice == "XGBoost":
         model = XGBClassifier(use_label_encoder=False, eval_metric="mlogloss")
      
-    # -------------------
-    # Train model
-    # -------------------
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
@@ -468,16 +425,13 @@ elif page == "Prediction":
     # -------------------
     st.subheader(f"{model_choice} Evaluation Metrics")
 
-    # Accuracy
     acc = accuracy_score(y_test, y_pred)
     st.markdown(f"**Accuracy:** <span style='color:green;'>**{acc:.2f}**</span>", unsafe_allow_html=True)
 
-    # Classes
     class_list = ", ".join(le.classes_)
     st.markdown(f"**Classes:** `{class_list}`")
 
-    # Classification Report inside expander
-    with st.expander("📘 Classification Report", expanded=False):
+    with st.expander("Classification Report", expanded=False):
         report = classification_report(
             y_test,
             y_pred,
@@ -497,11 +451,6 @@ elif page == "Prediction":
                })
         )
 
-
-    
-    # -------------------
-    # Feature importance
-    # -------------------
     if model_choice in ["Random Forest", "Decision Tree", "XGBoost"]:
         importance = dict(zip(features, model.feature_importances_))
     elif model_choice == "Logistic Regression":
@@ -514,9 +463,6 @@ elif page == "Prediction":
     sorted_features = sorted([(f, importance[f]) for f in importance if importance[f] > 0],
                              key=lambda x: x[1], reverse=True)
 
-   # -------------------
-   # User Input (Top 5 unique features, cached per model)
-   # -------------------
     st.subheader("Enter Your Details for Prediction")
     user_inputs = {}
 
@@ -534,10 +480,8 @@ elif page == "Prediction":
                 break
         st.session_state[cache_key] = top5_features
 
-    # Use cached list for this model
     top5_features = st.session_state[cache_key]
 
-    # Create widgets for those 5 features
     for f in top5_features:
         key = f"inp_{f}"
         if f == "Age":
@@ -562,9 +506,6 @@ elif page == "Prediction":
             mean_val = float(df_encoded[f].mean())
             user_inputs[f] = st.slider(f"{f} (units)", min_val, max_val, mean_val, key=key)
 
-   # -------------------
-   # Convert to DataFrame (outside the loop!)
-   # -------------------
     input_df = pd.DataFrame([user_inputs])
 
    # Ensure all features required by the model exist
@@ -574,9 +515,6 @@ elif page == "Prediction":
 
     input_encoded = input_df[features]
 
-   # -------------------
-   # Prediction button (outside the loop!)
-   # -------------------
     if st.button("Predict Sleep Disorder"):
         X_new = scaler.transform(input_encoded)
         pred_class = le.inverse_transform(model.predict(X_new))[0]
